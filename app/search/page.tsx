@@ -1,3 +1,4 @@
+
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
@@ -8,6 +9,7 @@ import {
   X,
   Loader2,
   AlertCircle,
+  ArrowRight,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
@@ -254,7 +256,10 @@ export default function SearchPage() {
           <form onSubmit={handleSearch}>
             <div className="mb-5 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <SlidersHorizontal size={17} className="text-[#8E8A83]" />
+                <SlidersHorizontal
+                  size={17}
+                  className="text-[#8E8A83]"
+                />
 
                 <h2 className="text-sm font-medium text-[#C9C5BE]">
                   Search clues
@@ -400,7 +405,9 @@ export default function SearchPage() {
                     <Search size={20} className="text-[#77736D]" />
                   </div>
 
-                  <h3 className="font-medium">No matching person found</h3>
+                  <h3 className="font-medium">
+                    No matching person found
+                  </h3>
 
                   <p className="mt-2 max-w-md text-sm leading-6 text-[#77736D]">
                     Try removing one clue or searching with a different
@@ -421,7 +428,9 @@ export default function SearchPage() {
                 <Search size={20} className="text-[#77736D]" />
               </div>
 
-              <h3 className="font-medium">Start with a clue</h3>
+              <h3 className="font-medium">
+                Start with a clue
+              </h3>
 
               <p className="mt-2 max-w-md text-sm leading-6 text-[#77736D]">
                 Enter a name, hostel, department, matric number, or any other
@@ -485,29 +494,56 @@ function PersonCard({ person }: { person: Person }) {
 
       <div className="mt-5 grid gap-2 text-sm">
         {person.department && (
-          <Detail label="Department" value={person.department} />
+          <Detail
+            label="Department"
+            value={person.department}
+          />
         )}
 
         {person.faculty && (
-          <Detail label="Faculty" value={person.faculty} />
+          <Detail
+            label="Faculty"
+            value={person.faculty}
+          />
         )}
 
         {person.level && (
-          <Detail label="Level" value={person.level} />
+          <Detail
+            label="Level"
+            value={person.level}
+          />
         )}
 
         {person.class_name && (
-          <Detail label="Class" value={person.class_name} />
+          <Detail
+            label="Class"
+            value={person.class_name}
+          />
         )}
 
         {person.hostel && (
-          <Detail label="Hostel" value={person.hostel} />
+          <Detail
+            label="Hostel"
+            value={person.hostel}
+          />
         )}
 
         {person.matric_number && (
-          <Detail label="Matric" value={person.matric_number} />
+          <Detail
+            label="Matric"
+            value={person.matric_number}
+          />
         )}
       </div>
+
+      {/* NEW: Full profile link */}
+      <a
+        href={`/people/${person.id}`}
+        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-[#171717] px-4 py-3 text-sm font-medium text-[#A7A39B] transition hover:border-white/[0.15] hover:bg-[#1D1D1D] hover:text-[#E8E5DF]"
+      >
+        View Full Profile
+        <ArrowRight size={15} />
+      </a>
     </article>
   );
 }
