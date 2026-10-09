@@ -1,584 +1,237 @@
 "use client";
 
 import { ChangeEvent, useEffect, useRef, useState } from "react";
-import {
-  Camera,
-  Check,
-  ImagePlus,
-  Loader2,
-  RotateCcw,
-  ScanFace,
-  Upload,
-  X,
-} from "lucide-react";
-
+import * as faceapi from "@vladmandic/face-api";
+import { Camera, CheckCircle2, ImagePlus, Loader2, RotateCcw, ScanFace, ShieldCheck, X } from "lucide-react";
 import Navbar from "../components/Navbar";
 import { supabase } from "../../src/lib/supabase";
+
+const MODEL_PATH = "/models/face/";
+const MATCH_THRESHOLD = 0.6;
+type MatchResult = { distance: number; possibleMatch: boolean };
 
 export default function ScanPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-
   const [userChecked, setUserChecked] = useState(false);
   const [userSignedIn, setUserSignedIn] = useState(false);
+  const [modelsReady, setModelsReady] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [capturedFile, setCapturedFile] = useState<File | null>(null);
+  const [referenceUrl, setReferenceUrl] = useState("");
+  const [testImage, setTestImage] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<MatchResult | null>(null);
 
   useEffect(() => {
-    checkSession();
-
+    let active = true;
+    async function initialise() {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (active) setUserSignedIn(Boolean(data.user));
+      } catch {
+        if (active) setError("Could not check your session. Refresh and sign in again.");
+      } finally {
+        if (active) setUserChecked(true);
+      }
+    }
+    void initialise();
+    Promise.all([
+      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_PATH),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_PATH),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_PATH),
+    ]).then(() => {
+      if (active) setModelsReady(true);
+    }).catch((cause: unknown) => {
+      console.error("Face model loading failed:", cause);
+      if (active) setError("Face models could not load. Run the model-download script and refresh this page.");
+    });
     return () => {
-      stopCamera();
+      active = false;
+      streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
   useEffect(() => {
-    if (cameraOpen && videoRef.current && streamRef.current) {
-      videoRef.current.srcObject = streamRef.current;
-      videoRef.current.play().catch(() => {});
-    }
+    if (!cameraOpen || !videoRef.current || !streamRef.current) return;
+    videoRef.current.srcObject = streamRef.current;
+    void videoRef.current.play().catch((cause) => {
+      console.error("Camera preview failed:", cause);
+      setError("Camera opened, but its preview did not start. Check browser permissions.");
+    });
   }, [cameraOpen]);
 
-  async function checkSession() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    setUserSignedIn(Boolean(user));
-    setUserChecked(true);
+  function stopCamera() {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraOpen(false);
   }
 
   async function openCamera() {
     setError("");
-    setCapturedImage(null);
-    setCapturedFile(null);
+    setResult(null);
     setCameraLoading(true);
-
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error("Camera access is not supported by this browser.");
+        throw new Error("Camera access requires HTTPS or localhost and a supported browser.");
       }
-
+      stopCamera();
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
+        video: { facingMode: { ideal: "user" }, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
-
       streamRef.current = stream;
       setCameraOpen(true);
-    } catch (err: any) {
-      console.error("Camera error:", err);
-
-      setError(
-        err?.name === "NotAllowedError"
-          ? "Camera permission was denied. Allow camera access and try again."
-          : "We could not open the camera. You can upload an image instead."
-      );
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not open the camera. Allow camera access or upload a photo instead.");
     } finally {
       setCameraLoading(false);
     }
   }
 
-  function stopCamera() {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    setCameraOpen(false);
-  }
-
   function capturePhoto() {
     const video = videoRef.current;
-
-    if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
-      setError("The camera is not ready yet. Try again in a moment.");
+    if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !video.videoWidth) {
+      setError("The camera is not ready yet. Wait until the preview appears and try again.");
       return;
     }
-
     const canvas = document.createElement("canvas");
-
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-
     const context = canvas.getContext("2d");
-
     if (!context) {
-      setError("Unable to capture the camera image.");
+      setError("Could not capture the camera image.");
       return;
     }
-
-    context.drawImage(
-      video,
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
-
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          setError("Unable to create the captured image.");
-          return;
-        }
-
-        const fileName =
-          "peoplefind-scan-" +
-          Date.now() +
-          ".jpg";
-
-        const file = new File(
-          [blob],
-          fileName,
-          {
-            type: "image/jpeg",
-          }
-        );
-
-        setCapturedFile(file);
-        setCapturedImage(URL.createObjectURL(blob));
-
-        stopCamera();
-      },
-      "image/jpeg",
-      0.92
-    );
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    setTestImage(canvas.toDataURL("image/jpeg", 0.92));
+    setResult(null);
+    setError("");
+    stopCamera();
   }
 
   function handleUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-
+    event.target.value = "";
     if (!file) return;
-
-    setError("");
-
     if (!file.type.startsWith("image/")) {
-      setError("Please choose an image file.");
+      setError("Choose an image file.");
       return;
     }
-
     if (file.size > 15 * 1024 * 1024) {
-      setError("Please choose an image smaller than 15 MB.");
+      setError("Choose an image smaller than 15 MB.");
       return;
     }
-
     stopCamera();
-
-    setCapturedFile(file);
-    setCapturedImage(URL.createObjectURL(file));
-  }
-
-  function clearImage() {
-    if (capturedImage) {
-      URL.revokeObjectURL(capturedImage);
-    }
-
-    setCapturedImage(null);
-    setCapturedFile(null);
+    if (testImage?.startsWith("blob:")) URL.revokeObjectURL(testImage);
+    setTestImage(URL.createObjectURL(file));
+    setResult(null);
     setError("");
+  }
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+  function loadImage(source: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.crossOrigin = "anonymous";
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Could not load the reference image. Check that the URL is valid, not expired, and allows browser image access."));
+      image.src = source;
+    });
+  }
+
+  async function descriptorFor(source: string): Promise<Float32Array> {
+    const image = await loadImage(source);
+    const detection = await faceapi.detectSingleFace(image, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+    if (!detection) throw new Error("No clear face was detected in one of the images. Try a front-facing, well-lit photo.");
+    return detection.descriptor;
+  }
+
+  async function comparePhotos() {
+    if (!modelsReady) { setError("Wait until the face models finish loading."); return; }
+    if (!referenceUrl.trim() || !testImage) { setError("Add your reference photo URL and capture or upload a second photo."); return; }
+    setLoading(true);
+    setError("");
+    setResult(null);
+    try {
+      const [referenceDescriptor, testDescriptor] = await Promise.all([
+        descriptorFor(referenceUrl.trim()),
+        descriptorFor(testImage),
+      ]);
+      const distance = faceapi.euclideanDistance(referenceDescriptor, testDescriptor);
+      setResult({ distance, possibleMatch: distance < MATCH_THRESHOLD });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Photo comparison failed.");
+    } finally {
+      setLoading(false);
     }
   }
 
-  function startAgain() {
-    clearImage();
-    openCamera();
+  function resetTest() {
+    stopCamera();
+    if (testImage?.startsWith("blob:")) URL.revokeObjectURL(testImage);
+    setTestImage(null);
+    setResult(null);
+    setError("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  if (!userChecked) {
-    return (
-      <main className="min-h-screen bg-[#0c0c0b] text-[#ebe8e1]">
-        <Navbar />
-
-        <div className="flex min-h-[70vh] items-center justify-center">
-          <div className="flex items-center gap-3 text-sm text-[#918d84]">
-            <Loader2 size={18} className="animate-spin" />
-            Loading Scan to Find...
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  if (!userSignedIn) {
-    return (
-      <main className="min-h-screen bg-[#0c0c0b] text-[#ebe8e1]">
-        <Navbar />
-
-        <section className="mx-auto max-w-3xl px-6 py-20 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-white/[0.08] bg-[#141413]">
-            <ScanFace
-              size={27}
-              className="text-[#cdbd96]"
-            />
-          </div>
-
-          <h1 className="mt-6 text-3xl font-semibold tracking-tight">
-            Scan to Find
-          </h1>
-
-          <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#918d84]">
-            Sign in to use PeopleFind's person-matching tools.
-          </p>
-
-          <a
-            href="/auth"
-            className="pf-button-primary mt-7"
-          >
-            Sign in
-          </a>
-        </section>
-      </main>
-    );
-  }
+  if (!userChecked) return <main className="min-h-screen bg-[#0c0c0b] text-[#ebe8e1]"><Navbar /><div className="flex min-h-[65vh] items-center justify-center gap-3 text-sm text-[#918d84]"><Loader2 size={18} className="animate-spin" /> Loading Scan to Find...</div></main>;
+  if (!userSignedIn) return (
+    <main className="min-h-screen bg-[#0c0c0b] text-[#ebe8e1]">
+      <Navbar />
+      <section className="mx-auto max-w-2xl px-6 py-20 text-center">
+        <ScanFace size={36} className="mx-auto text-[#cdbd96]" />
+        <h1 className="mt-5 text-3xl font-semibold">Face Match Lab</h1>
+        <p className="mt-3 text-sm leading-7 text-[#918d84]">Sign in to test the personal photo-comparison prototype.</p>
+        <a href="/auth" className="pf-button-primary mt-7">Sign in</a>
+      </section>
+    </main>
+  );
 
   return (
     <main className="min-h-screen bg-[#0c0c0b] text-[#ebe8e1]">
       <Navbar />
-
-      <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
-        <div className="max-w-2xl">
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-[#cdbd96]">
-            PeopleFind
-          </p>
-
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Scan to Find
-          </h1>
-
-          <p className="mt-3 text-sm leading-7 text-[#918d84]">
-            Take a photo or choose an existing image. PeopleFind will use the
-            image as the starting point for finding possible matches in the
-            directory.
-          </p>
+      <section className="mx-auto max-w-4xl px-5 py-9 sm:px-6 sm:py-12">
+        <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-[#cdbd96]">PeopleFind · Experimental tool</p>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Face Match Lab</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-[#918d84]">Compare two photos you control. This version tests one reference photo against one test photo; it does not search the student directory or reveal anyone’s profile.</p>
+        <div className="mt-7 flex items-center gap-2 rounded-xl border border-white/[0.08] bg-[#141413] px-4 py-3 text-sm">
+          <span className={`h-2 w-2 rounded-full ${modelsReady ? "bg-emerald-400" : "bg-[#cdbd96]"}`} />
+          {modelsReady ? "Face models ready" : "Loading face models…"}
         </div>
-
-        {error && (
-          <div className="mt-7 flex items-start gap-3 rounded-2xl border border-[#d98282]/20 bg-[#d98282]/[0.06] p-4">
-            <X
-              size={18}
-              className="mt-0.5 shrink-0 text-[#d98282]"
-            />
-
-            <p className="text-sm leading-6 text-[#d7aaa7]">
-              {error}
-            </p>
-          </div>
-        )}
-
-        <div className="mt-9">
-          {cameraOpen ? (
-            <CameraPanel
-              videoRef={videoRef}
-              onCapture={capturePhoto}
-              onClose={stopCamera}
-            />
-          ) : capturedImage ? (
-            <CapturedPanel
-              image={capturedImage}
-              file={capturedFile}
-              onClear={clearImage}
-              onAgain={startAgain}
-            />
-          ) : (
-            <StartPanel
-              loading={cameraLoading}
-              onCamera={openCamera}
-              onUpload={() => fileInputRef.current?.click()}
-            />
-          )}
+        {error && <div role="alert" className="mt-5 flex items-start gap-3 rounded-xl border border-[#d98282]/20 bg-[#d98282]/[0.06] p-4 text-sm leading-6 text-[#d7aaa7]"><X size={18} className="mt-0.5 shrink-0" /><span>{error}</span></div>}
+        <div className="mt-5 grid gap-5 md:grid-cols-2">
+          <section className="rounded-2xl border border-white/[0.08] bg-[#141413] p-5 sm:p-6">
+            <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#cdbd96]/10 text-[#cdbd96]"><ShieldCheck size={20} /></div><div><h2 className="text-sm font-semibold">Reference photo</h2><p className="mt-1 text-xs text-[#918d84]">A photo you control</p></div></div>
+            <label htmlFor="reference-url" className="mt-5 block text-sm font-medium">Supabase image URL</label>
+            <input id="reference-url" type="url" value={referenceUrl} onChange={(event) => { setReferenceUrl(event.target.value); setResult(null); }} placeholder="Paste a public or valid signed URL" className="mt-2 w-full rounded-xl border border-white/[0.1] bg-[#0b0b0a] px-3 py-3 text-sm outline-none focus:border-[#cdbd96]/60" />
+            <p className="mt-2 text-xs leading-5 text-[#777267]">Private Supabase files need an unexpired signed URL and browser access. Never paste a service-role key.</p>
+          </section>
+          <section className="rounded-2xl border border-white/[0.08] bg-[#141413] p-5 sm:p-6">
+            <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#cdbd96]/10 text-[#cdbd96]"><ScanFace size={20} /></div><div><h2 className="text-sm font-semibold">Test photo</h2><p className="mt-1 text-xs text-[#918d84]">Capture or upload another image</p></div></div>
+            <div className="mt-5 flex min-h-52 items-center justify-center overflow-hidden rounded-xl border border-white/[0.08] bg-[#090909]">
+              {cameraOpen ? <video ref={videoRef} autoPlay muted playsInline className="max-h-80 w-full object-contain" /> : testImage ? <img src={testImage} alt="Selected test photo" className="max-h-80 w-full object-contain" /> : <div className="p-6 text-center text-sm text-[#777267]"><ImagePlus size={28} className="mx-auto mb-3" />No test photo selected</div>}
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button type="button" onClick={cameraOpen ? capturePhoto : openCamera} disabled={cameraLoading} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#cdbd96] px-3 py-3 text-sm font-semibold text-[#171612] disabled:opacity-50">{cameraLoading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}{cameraOpen ? "Capture" : cameraLoading ? "Opening…" : "Use camera"}</button>
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.1] px-3 py-3 text-sm hover:bg-white/[0.04]"><ImagePlus size={16} /> Upload</button>
+            </div>
+            {cameraOpen && <button type="button" onClick={stopCamera} className="mt-3 w-full rounded-xl border border-white/[0.08] px-3 py-2 text-xs text-[#918d84]">Close camera</button>}
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
+          </section>
         </div>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleUpload}
-          className="hidden"
-        />
-
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          <InfoItem
-            number="01"
-            title="Capture"
-            text="Use your camera or choose an image from your device."
-          />
-
-          <InfoItem
-            number="02"
-            title="Match"
-            text="The selected image will be passed to the matching system."
-          />
-
-          <InfoItem
-            number="03"
-            title="Profile"
-            text="Possible directory matches will lead directly to their profiles."
-          />
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <button type="button" disabled={!modelsReady || !testImage || !referenceUrl.trim() || loading} onClick={comparePhotos} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#ebe8e1] px-5 py-3 text-sm font-semibold text-[#0c0c0b] disabled:cursor-not-allowed disabled:opacity-40">{loading ? <Loader2 size={17} className="animate-spin" /> : <ScanFace size={17} />}{loading ? "Comparing photos…" : "Compare photos"}</button>
+          <button type="button" onClick={resetTest} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/[0.1] px-5 py-3 text-sm"><RotateCcw size={16} /> Reset</button>
         </div>
+        {result && <section className="mt-5 rounded-2xl border border-white/[0.1] bg-[#141413] p-5 sm:p-6"><div className="flex items-start gap-3"><CheckCircle2 size={22} className="mt-0.5 text-[#cdbd96]" /><div><p className="text-xs uppercase tracking-[0.16em] text-[#918d84]">Experimental result</p><h2 className="mt-2 text-xl font-semibold">{result.possibleMatch ? "Possible match" : "No match at this threshold"}</h2><p className="mt-2 text-sm text-[#b9b4a9]">Descriptor distance: <span className="font-mono">{result.distance.toFixed(4)}</span></p><p className="mt-3 text-xs leading-6 text-[#777267]">The 0.6 threshold is only a starting point, not an identity confidence score. Lighting, pose, image quality, and the model can cause errors. Do not use this result to make decisions about another person.</p></div></div></section>}
+        <p className="mt-5 text-xs leading-6 text-[#777267]">This page calculates descriptors in your browser and does not save images or descriptors to Supabase. The next stage requires an explicit opt-in design and accuracy testing before any student-directory integration.</p>
       </section>
     </main>
-  );
-}
-
-function StartPanel({
-  loading,
-  onCamera,
-  onUpload,
-}: {
-  loading: boolean;
-  onCamera: () => void;
-  onUpload: () => void;
-}) {
-  return (
-    <div className="overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-[#141413]">
-      <div className="border-b border-white/[0.07] px-6 py-5 sm:px-8">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#cdbd96]/[0.1] text-[#cdbd96]">
-            <ScanFace size={20} />
-          </div>
-
-          <div>
-            <h2 className="text-sm font-semibold">
-              Choose an image source
-            </h2>
-
-            <p className="mt-1 text-xs text-[#625f58]">
-              Camera or existing image
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4 p-6 sm:grid-cols-2 sm:p-8">
-        <button
-          type="button"
-          onClick={onCamera}
-          disabled={loading}
-          className="group rounded-2xl border border-[#cdbd96]/20 bg-[#cdbd96]/[0.06] p-6 text-left transition hover:border-[#cdbd96]/35 hover:bg-[#cdbd96]/[0.09] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#cdbd96] text-[#0c0c0b]">
-            {loading ? (
-              <Loader2
-                size={21}
-                className="animate-spin"
-              />
-            ) : (
-              <Camera size={21} />
-            )}
-          </div>
-
-          <h3 className="mt-5 text-base font-semibold">
-            {loading
-              ? "Opening camera..."
-              : "Use Camera"}
-          </h3>
-
-          <p className="mt-2 text-sm leading-6 text-[#918d84]">
-            Take a new photo directly from your phone or computer.
-          </p>
-        </button>
-
-        <button
-          type="button"
-          onClick={onUpload}
-          className="group rounded-2xl border border-white/[0.08] bg-[#10100f] p-6 text-left transition hover:border-white/[0.15] hover:bg-[#181817]"
-        >
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.1] bg-[#181817] text-[#ebe8e1]">
-            <ImagePlus size={21} />
-          </div>
-
-          <h3 className="mt-5 text-base font-semibold">
-            Upload Image
-          </h3>
-
-          <p className="mt-2 text-sm leading-6 text-[#918d84]">
-            Choose an existing photo from your device.
-          </p>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function CameraPanel({
-  videoRef,
-  onCapture,
-  onClose,
-}: {
-  videoRef: React.RefObject<HTMLVideoElement | null>;
-  onCapture: () => void;
-  onClose: () => void;
-}) {
-  return (
-    <div className="overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-[#10100f]">
-      <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-4 sm:px-6">
-        <div className="flex items-center gap-3">
-          <span className="flex h-2.5 w-2.5 rounded-full bg-[#cdbd96]" />
-
-          <span className="text-sm font-medium">
-            Camera ready
-          </span>
-        </div>
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] text-[#918d84] transition hover:bg-white/[0.05] hover:text-[#ebe8e1]"
-          aria-label="Close camera"
-        >
-          <X size={17} />
-        </button>
-      </div>
-
-      <div className="relative aspect-[4/3] w-full bg-[#080808] sm:aspect-video">
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          className="h-full w-full object-cover"
-        />
-
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="h-[62%] w-[48%] rounded-[28%] border border-[#cdbd96]/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.18)]" />
-        </div>
-
-        <div className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full border border-white/[0.1] bg-black/60 px-4 py-2 text-xs text-[#cbc7be] backdrop-blur">
-          Position the person's face inside the guide
-        </div>
-      </div>
-
-      <div className="flex items-center justify-center p-6">
-        <button
-          type="button"
-          onClick={onCapture}
-          className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-[#cdbd96]/30 bg-[#ebe8e1] text-[#0c0c0b] shadow-lg transition hover:scale-105 hover:bg-white active:scale-95"
-          aria-label="Take photo"
-        >
-          <Camera size={25} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function CapturedPanel({
-  image,
-  file,
-  onClear,
-  onAgain,
-}: {
-  image: string;
-  file: File | null;
-  onClear: () => void;
-  onAgain: () => void;
-}) {
-  return (
-    <div className="overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-[#141413]">
-      <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-4 sm:px-6">
-        <div>
-          <p className="text-sm font-semibold">
-            Image selected
-          </p>
-
-          <p className="mt-1 text-xs text-[#625f58]">
-            {file?.name || "Captured image"}
-          </p>
-        </div>
-
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#91b89a]/[0.1] text-[#91b89a]">
-          <Check size={17} />
-        </div>
-      </div>
-
-      <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:p-8">
-        <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#080808]">
-          <img
-            src={image}
-            alt="Selected scan"
-            className="max-h-[520px] w-full object-contain"
-          />
-        </div>
-
-        <div className="flex flex-col justify-center">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#cdbd96]">
-            Ready
-          </p>
-
-          <h2 className="mt-3 text-xl font-semibold">
-            Image captured successfully
-          </h2>
-
-          <p className="mt-3 text-sm leading-6 text-[#918d84]">
-            This image is ready to be sent through the PeopleFind matching
-            system.
-          </p>
-
-          <button
-            type="button"
-            disabled
-            className="mt-7 inline-flex items-center justify-center gap-2 rounded-xl bg-[#ebe8e1] px-4 py-3 text-sm font-semibold text-[#0c0c0b] opacity-50"
-          >
-            <ScanFace size={17} />
-            Matching engine coming next
-          </button>
-
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={onAgain}
-              className="pf-button-secondary"
-            >
-              <RotateCcw size={15} />
-              Try again
-            </button>
-
-            <button
-              type="button"
-              onClick={onClear}
-              className="pf-button-secondary"
-            >
-              <Upload size={15} />
-              Choose another
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function InfoItem({
-  number,
-  title,
-  text,
-}: {
-  number: string;
-  title: string;
-  text: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/[0.07] bg-[#10100f] p-5">
-      <span className="text-xs font-medium tracking-[0.16em] text-[#cdbd96]">
-        {number}
-      </span>
-
-      <h3 className="mt-4 text-sm font-semibold">
-        {title}
-      </h3>
-
-      <p className="mt-2 text-xs leading-6 text-[#625f58]">
-        {text}
-      </p>
-    </div>
   );
 }
