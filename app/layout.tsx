@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "PeopleFind",
-  description: "Find and connect with people",
+  description: "Find people through trusted directory information.",
 };
 
 export default function RootLayout({

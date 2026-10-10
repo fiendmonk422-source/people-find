@@ -1,23 +1,30 @@
 import Link from "next/link";
 import {
-  Search,
-  Users,
-  UserRound,
-  MapPin,
+  ArrowRight,
+  Building2,
   GraduationCap,
+  Home,
+  Search,
+  UserRound,
 } from "lucide-react";
 
-import Navbar from "../components/Navbar";
 import { createSupabaseServerClient } from "../../src/lib/supabase-server";
 
 type Person = {
   id: string;
   name: string | null;
-  department: string | null;
+  first_name: string | null;
+  middle_name: string | null;
+  last_name: string | null;
+  nickname: string | null;
+  school: string | null;
   faculty: string | null;
+  department: string | null;
   level: string | null;
+  class_name: string | null;
   matric_number: string | null;
   hostel: string | null;
+  room: string | null;
 };
 
 export default async function PeoplePage() {
@@ -29,28 +36,26 @@ export default async function PeoplePage() {
 
   if (!user) {
     return (
-      <main className="min-h-screen bg-[#090909] text-[#E8E5DF]">
-        <Navbar />
+      <main className="min-h-screen bg-[#0c0c0b] text-[#ebe8e1]">
+        <div className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center px-5 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.08] bg-[#141413]">
+            <UserRound size={20} className="text-[#cdbd96]" />
+          </div>
 
-        <div className="mx-auto max-w-3xl px-6 py-24 text-center">
-          <Users
-            size={42}
-            className="mx-auto mb-5 text-[#77736D]"
-          />
-
-          <h1 className="text-3xl font-semibold">
-            Sign in to view people
+          <h1 className="mt-5 text-2xl font-semibold tracking-[-0.03em]">
+            Sign in to browse the directory.
           </h1>
 
-          <p className="mt-3 text-[#77736D]">
-            PeopleFind is available to authenticated users.
+          <p className="mt-3 text-sm leading-6 text-[#77736c]">
+            Sign in to access PeopleFind directory records.
           </p>
 
           <Link
             href="/auth"
-            className="mt-7 inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-[#E8E5DF] px-5 py-3 text-sm font-medium text-[#090909] transition hover:bg-white"
+            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-[#ebe8e1] px-5 py-3 text-sm font-semibold text-[#0c0c0b] transition hover:bg-white"
           >
             Sign in
+            <ArrowRight size={15} />
           </Link>
         </div>
       </main>
@@ -60,7 +65,22 @@ export default async function PeoplePage() {
   const { data, error } = await supabase
     .from("people")
     .select(
-      "id, name, department, faculty, level, matric_number, hostel"
+      `
+      id,
+      name,
+      first_name,
+      middle_name,
+      last_name,
+      nickname,
+      school,
+      faculty,
+      department,
+      level,
+      class_name,
+      matric_number,
+      hostel,
+      room
+    `
     )
     .order("name", { ascending: true })
     .limit(100);
@@ -68,115 +88,203 @@ export default async function PeoplePage() {
   const people = (data ?? []) as Person[];
 
   return (
-    <main className="min-h-screen bg-[#090909] text-[#E8E5DF]">
-      <Navbar />
+    <main className="min-h-screen bg-[#0c0c0b] text-[#ebe8e1]">
+      <div className="mx-auto max-w-7xl px-5 py-10 sm:px-6 lg:py-14">
+        {/* HEADER */}
+        <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="mb-3 text-[10px] uppercase tracking-[0.2em] text-[#6c6861]">
+              People directory
+            </p>
 
-      <section className="mx-auto max-w-7xl px-6 py-10">
-        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div>
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.07] bg-[#151515]">
-              <Users size={20} className="text-[#A7A39B]" />
-            </div>
-
-            <h1 className="text-3xl font-semibold tracking-tight">
-              People
+            <h1 className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+              Browse the directory.
             </h1>
 
-            <p className="mt-2 max-w-xl text-sm leading-6 text-[#77736D]">
-              Browse people currently available in the PeopleFind network.
+            <p className="mt-4 text-sm leading-6 text-[#77736c] sm:text-base">
+              Explore available directory records and open a full profile
+              when you find the person you're looking for.
             </p>
           </div>
 
           <Link
             href="/search"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-[#151515] px-4 py-3 text-sm text-[#E8E5DF] transition hover:border-white/[0.14] hover:bg-[#1B1B1B]"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#ebe8e1] px-5 py-3 text-sm font-semibold text-[#0c0c0b] transition hover:bg-white"
           >
             <Search size={16} />
-            Search people
+            Search directory
           </Link>
         </div>
 
-        {error ? (
-          <div className="mt-10 rounded-2xl border border-red-500/10 bg-red-500/[0.04] p-6">
-            <p className="text-sm text-red-300">
-              Unable to load people.
-            </p>
-
-            <p className="mt-2 text-xs text-[#77736D]">
-              {error.message}
-            </p>
+        {/* ERROR */}
+        {error && (
+          <div className="mt-8 rounded-xl border border-[#d98282]/20 bg-[#d98282]/[0.06] px-4 py-3 text-sm text-[#dca0a0]">
+            Unable to load the directory right now.
           </div>
-        ) : people.length === 0 ? (
-          <div className="mt-10 rounded-2xl border border-white/[0.06] bg-[#111111] p-12 text-center">
-            <Users
-              size={34}
-              className="mx-auto mb-4 text-[#5F5C57]"
-            />
+        )}
 
-            <h2 className="text-lg font-medium">
-              No people found
-            </h2>
+        {/* DIRECTORY */}
+        <section className="mt-10">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-[#625f58]">
+                Directory
+              </p>
 
-            <p className="mt-2 text-sm text-[#77736D]">
-              People added to the network will appear here.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="mt-10 flex items-center gap-2 text-xs text-[#77736D]">
-              <Users size={14} />
-              Showing {people.length} people
+              <h2 className="mt-1 text-lg font-semibold">
+                People
+              </h2>
             </div>
 
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <p className="text-xs text-[#625f58]">
+              Showing up to 100 records
+            </p>
+          </div>
+
+          {people.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {people.map((person) => (
-                <Link
-                  key={person.id}
-                  href={`/people/${person.id}`}
-                  className="group rounded-2xl border border-white/[0.06] bg-[#111111] p-5 transition hover:border-white/[0.12] hover:bg-[#151515]"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-[#181818]">
-                      <UserRound
-                        size={19}
-                        className="text-[#A7A39B]"
-                      />
-                    </div>
-
-                    <span className="rounded-lg border border-white/[0.06] px-2 py-1 text-[10px] text-[#77736D]">
-                      {person.level || "—"}
-                    </span>
-                  </div>
-
-                  <h2 className="mt-5 truncate text-base font-medium text-[#E8E5DF] group-hover:text-white">
-                    {person.name || "Anonymous"}
-                  </h2>
-
-                  <p className="mt-1 truncate text-xs text-[#77736D]">
-                    {person.department || "Department unavailable"}
-                  </p>
-
-                  <div className="mt-5 space-y-2 border-t border-white/[0.05] pt-4">
-                    <div className="flex items-center gap-2 text-xs text-[#77736D]">
-                      <GraduationCap size={14} />
-                      <span className="truncate">
-                        {person.faculty || "Faculty unavailable"}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-xs text-[#77736D]">
-                      <MapPin size={14} />
-                      <span className="truncate">
-                        {person.hostel || "Hostel unavailable"}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
+                <PersonCard key={person.id} person={person} />
               ))}
             </div>
-          </>
-        )}
-      </section>
+          ) : (
+            <div className="rounded-2xl border border-white/[0.07] bg-[#141413] px-6 py-14 text-center">
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.07] bg-[#1a1a18]">
+                <UserRound
+                  size={19}
+                  className="text-[#706c64]"
+                />
+              </div>
+
+              <h2 className="mt-5 text-base font-semibold">
+                No directory records found
+              </h2>
+
+              <p className="mt-2 text-sm text-[#6f6b64]">
+                There are currently no records available to display.
+              </p>
+            </div>
+          )}
+        </section>
+      </div>
     </main>
+  );
+}
+
+function PersonCard({ person }: { person: Person }) {
+  const displayName =
+    person.name ||
+    [person.first_name, person.middle_name, person.last_name]
+      .filter(Boolean)
+      .join(" ") ||
+    "Unnamed person";
+
+  const academicDetails = [
+    person.department,
+    person.faculty,
+  ].filter(Boolean);
+
+  const schoolDetails = [
+    person.school,
+    person.level ? `Level ${person.level}` : null,
+  ].filter(Boolean);
+
+  const accommodationDetails = [
+    person.hostel,
+    person.room ? `Room ${person.room}` : null,
+  ].filter(Boolean);
+
+  return (
+    <article className="group rounded-2xl border border-white/[0.07] bg-[#141413] p-5 transition hover:border-white/[0.12] hover:bg-[#181817]">
+      {/* Identity */}
+      <div className="flex items-start gap-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-[#1a1a18]">
+          <UserRound
+            size={18}
+            strokeWidth={1.6}
+            className="text-[#cdbd96]"
+          />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-semibold text-[#ebe8e1]">
+            {displayName}
+          </h3>
+
+          {person.nickname && (
+            <p className="mt-1 truncate text-xs text-[#77736c]">
+              {person.nickname}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Details */}
+      <div className="mt-5 space-y-2.5">
+        {academicDetails.length > 0 && (
+          <div className="flex gap-2 text-xs text-[#77736c]">
+            <GraduationCap
+              size={14}
+              className="mt-0.5 shrink-0 text-[#625f58]"
+            />
+
+            <span className="line-clamp-2">
+              {academicDetails.join(" · ")}
+            </span>
+          </div>
+        )}
+
+        {schoolDetails.length > 0 && (
+          <div className="flex gap-2 text-xs text-[#77736c]">
+            <Building2
+              size={14}
+              className="mt-0.5 shrink-0 text-[#625f58]"
+            />
+
+            <span>{schoolDetails.join(" · ")}</span>
+          </div>
+        )}
+
+        {person.class_name && (
+          <div className="flex gap-2 text-xs text-[#77736c]">
+            <GraduationCap
+              size={14}
+              className="mt-0.5 shrink-0 text-[#625f58]"
+            />
+
+            <span>Class: {person.class_name}</span>
+          </div>
+        )}
+
+        {accommodationDetails.length > 0 && (
+          <div className="flex gap-2 text-xs text-[#77736c]">
+            <Home
+              size={14}
+              className="mt-0.5 shrink-0 text-[#625f58]"
+            />
+
+            <span>{accommodationDetails.join(" · ")}</span>
+          </div>
+        )}
+
+        {person.matric_number && (
+          <div className="border-t border-white/[0.05] pt-3 text-xs text-[#625f58]">
+            Matric:{" "}
+            <span className="text-[#85817a]">
+              {person.matric_number}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Profile */}
+      <Link
+        href={`/people/${person.id}`}
+        className="mt-5 flex items-center justify-between rounded-xl border border-white/[0.06] bg-[#10100f] px-3.5 py-3 text-xs font-medium text-[#918d85] transition hover:border-white/[0.11] hover:text-[#ebe8e1]"
+      >
+        View full profile
+        <ArrowRight size={14} />
+      </Link>
+    </article>
   );
 }

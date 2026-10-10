@@ -4,172 +4,234 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
-  AtSign,
   LogOut,
+  Mail,
   ShieldCheck,
   UserCircle,
 } from "lucide-react";
-import Navbar from "../components/Navbar";
+import { useRouter } from "next/navigation";
+
 import { supabase } from "../../src/lib/supabase";
 
+type AccountUser = {
+  id: string;
+  email?: string;
+  created_at?: string;
+  user_metadata?: {
+    nickname?: string;
+  };
+};
+
 export default function ProfilePage() {
-  const [user, setUser] = useState<any>(null);
+  const router = useRouter();
+
+  const [user, setUser] = useState<AccountUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    async function loadUser() {
+    async function loadAccount() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      setUser(user);
+      if (!user) {
+        router.replace("/auth");
+        return;
+      }
+
+      setUser(user as AccountUser);
       setLoading(false);
     }
 
-    loadUser();
-  }, []);
+    loadAccount();
+  }, [router]);
 
-  async function logout() {
+  async function handleLogout() {
+    setLoggingOut(true);
+
     await supabase.auth.signOut();
-    window.location.href = "/";
+
+    router.replace("/");
+    router.refresh();
   }
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#090909] text-[#E8E5DF]">
-        <Navbar />
-        <div className="mx-auto max-w-3xl px-6 py-12">
-          <p className="text-sm text-[#77736D]">Loading profile...</p>
+      <main className="min-h-screen bg-[#0c0c0b] text-[#ebe8e1]">
+        <div className="mx-auto flex min-h-screen max-w-5xl items-center justify-center px-5">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#cdbd96]/20 border-t-[#cdbd96]" />
         </div>
       </main>
     );
   }
 
   if (!user) {
-    return (
-      <main className="min-h-screen bg-[#090909] text-[#E8E5DF]">
-        <Navbar />
-
-        <div className="mx-auto max-w-3xl px-6 py-12">
-          <Link
-            href="/"
-            className="mb-10 inline-flex items-center gap-2 text-sm text-[#8D8982] hover:text-[#E8E5DF]"
-          >
-            <ArrowLeft size={16} />
-            Back home
-          </Link>
-
-          <div className="rounded-2xl border border-white/[0.08] bg-[#111111] p-8">
-            <UserCircle size={32} className="mb-4 text-[#8D8982]" />
-
-            <h1 className="text-2xl font-semibold">
-              You are not signed in
-            </h1>
-
-            <p className="mt-2 text-sm text-[#77736D]">
-              Sign in to view your PeopleFind account.
-            </p>
-
-            <Link
-              href="/auth"
-              className="mt-6 inline-flex rounded-xl bg-[#E8E5DF] px-5 py-3 text-sm font-medium text-[#090909] hover:bg-white"
-            >
-              Sign in
-            </Link>
-          </div>
-        </div>
-      </main>
-    );
+    return null;
   }
 
-  const nickname = user.user_metadata?.nickname || "Anonymous";
+  const displayName =
+    user.user_metadata?.nickname?.trim() || "PeopleFind account";
+
+  const createdDate = user.created_at
+    ? new Date(user.created_at).toLocaleDateString("en-NG", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "Unavailable";
 
   return (
-    <main className="min-h-screen bg-[#090909] text-[#E8E5DF]">
-      <Navbar />
+    <main className="min-h-screen bg-[#0c0c0b] text-[#ebe8e1]">
+      <div className="mx-auto max-w-5xl px-5 py-10 sm:px-6 lg:py-14">
+        {/* Back */}
+        <Link
+          href="/"
+          className="mb-10 inline-flex items-center gap-2 text-sm text-[#77736c] transition hover:text-[#ebe8e1]"
+        >
+          <ArrowLeft size={16} />
+          Back to PeopleFind
+        </Link>
 
-      <section className="mx-auto max-w-3xl px-6 py-12">
+        {/* Header */}
         <div className="mb-10">
-          <p className="text-xs uppercase tracking-[0.2em] text-[#625F59]">
+          <p className="mb-3 text-[10px] uppercase tracking-[0.2em] text-[#6c6861]">
             Account
           </p>
 
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-            Your Profile
+          <h1 className="text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
+            Your PeopleFind account
           </h1>
 
-          <p className="mt-2 text-sm text-[#77736D]">
-            Manage your PeopleFind account information.
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#85817a]">
+            Manage your account information and access the directory tools
+            available to you.
           </p>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111111]">
-          <div className="border-b border-white/[0.07] p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/[0.08] bg-[#171717]">
-                <UserCircle size={30} className="text-[#A7A39B]" />
+        <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+          {/* Main account card */}
+          <section className="rounded-2xl border border-white/[0.07] bg-[#141413] p-6 sm:p-7">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-[#1a1a18]">
+                <UserCircle
+                  size={24}
+                  strokeWidth={1.6}
+                  className="text-[#cdbd96]"
+                />
               </div>
 
-              <div>
-                <h2 className="text-xl font-medium">{nickname}</h2>
-                <p className="mt-1 text-sm text-[#77736D]">
+              <div className="min-w-0">
+                <h2 className="truncate text-lg font-semibold text-[#ebe8e1]">
+                  {displayName}
+                </h2>
+
+                <p className="mt-1 text-sm text-[#77736c]">
                   PeopleFind account
                 </p>
               </div>
             </div>
-          </div>
 
-          <div className="divide-y divide-white/[0.06]">
-            <div className="flex items-center gap-4 p-6">
-              <AtSign size={19} className="text-[#77736D]" />
+            <div className="my-7 h-px bg-white/[0.06]" />
 
-              <div>
-                <p className="text-xs uppercase tracking-wider text-[#625F59]">
-                  Email
-                </p>
+            <div className="space-y-5">
+              <AccountRow
+                icon={<Mail size={17} />}
+                label="Email"
+                value={user.email || "Not available"}
+              />
 
-                <p className="mt-1 text-sm text-[#D5D1CA]">
-                  {user.email || "Not available"}
-                </p>
+              <AccountRow
+                icon={<UserCircle size={17} />}
+                label="Display name"
+                value={displayName}
+              />
+
+              <AccountRow
+                icon={<ShieldCheck size={17} />}
+                label="Account status"
+                value="Active"
+              />
+
+              <AccountRow
+                icon={<ShieldCheck size={17} />}
+                label="Member since"
+                value={createdDate}
+              />
+            </div>
+          </section>
+
+          {/* Side information */}
+          <aside className="space-y-5">
+            <section className="rounded-2xl border border-white/[0.07] bg-[#141413] p-6">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-[#1a1a18]">
+                <ShieldCheck
+                  size={18}
+                  className="text-[#cdbd96]"
+                />
               </div>
-            </div>
 
-            <div className="flex items-center gap-4 p-6">
-              <ShieldCheck size={19} className="text-[#77736D]" />
+              <h2 className="text-sm font-semibold text-[#ebe8e1]">
+                Directory access
+              </h2>
 
-              <div>
-                <p className="text-xs uppercase tracking-wider text-[#625F59]">
-                  Account status
-                </p>
-
-                <p className="mt-1 text-sm text-[#D5D1CA]">
-                  Authenticated
-                </p>
-              </div>
-            </div>
-
-            <div className="p-6">
-              <p className="text-xs uppercase tracking-wider text-[#625F59]">
-                User ID
+              <p className="mt-2 text-sm leading-6 text-[#77736c]">
+                Your account gives you access to the PeopleFind directory and
+                the features enabled for your account.
               </p>
+            </section>
 
-              <p className="mt-2 break-all font-mono text-xs text-[#77736D]">
-                {user.id}
+            <section className="rounded-2xl border border-white/[0.07] bg-[#141413] p-6">
+              <h2 className="text-sm font-semibold text-[#ebe8e1]">
+                Directory records
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-[#77736c]">
+                Student directory information is managed separately from your
+                PeopleFind account. Directory records are maintained by
+                authorized administrators.
               </p>
-            </div>
-          </div>
+            </section>
 
-          <div className="border-t border-white/[0.07] p-6">
             <button
-              onClick={logout}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-[#171717] px-4 py-3 text-sm text-[#A7A39B] transition hover:bg-[#202020] hover:text-[#E8E5DF]"
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.07] bg-[#141413] px-4 py-3 text-sm font-medium text-[#9a958d] transition hover:border-[#d98282]/20 hover:bg-[#191817] hover:text-[#dca0a0] disabled:opacity-50"
             >
-              <LogOut size={17} />
-              Sign out
+              <LogOut size={16} />
+
+              {loggingOut ? "Signing out..." : "Sign out"}
             </button>
-          </div>
+          </aside>
         </div>
-      </section>
+      </div>
     </main>
+  );
+}
+
+function AccountRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="mt-0.5 text-[#69655e]">{icon}</div>
+
+      <div className="min-w-0">
+        <p className="text-[11px] uppercase tracking-[0.12em] text-[#625f58]">
+          {label}
+        </p>
+
+        <p className="mt-1 break-words text-sm text-[#c6c2ba]">
+          {value}
+        </p>
+      </div>
+    </div>
   );
 }

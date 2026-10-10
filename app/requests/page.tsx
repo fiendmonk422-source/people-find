@@ -93,12 +93,14 @@ export default function RequestsPage() {
               "id, requester_name, target_name, school, faculty, department, level, hostel, clues, status, created_at"
             )
             .order("created_at", { ascending: false }),
+
           supabase
             .from("request_responses")
             .select(
               "id, request_id, responder_name, response, created_at"
             )
             .order("created_at", { ascending: true }),
+
           supabase
             .from("response_feedback")
             .select("id, response_id, user_id, voter_name, vote"),
@@ -112,7 +114,7 @@ export default function RequestsPage() {
       setResponses((responseResult.data ?? []) as ResponseItem[]);
       setFeedback((feedbackResult.data ?? []) as FeedbackItem[]);
     } catch (err: any) {
-      console.error(err);
+      console.error("Requests error:", err);
       setError(err?.message || "We couldn't load requests.");
     } finally {
       setLoading(false);
@@ -144,20 +146,24 @@ export default function RequestsPage() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) throw new Error("Please sign in first.");
+      if (!user) {
+        throw new Error("Please sign in first.");
+      }
 
-      const { error: insertError } = await supabase.from("requests").insert({
-        user_id: user.id,
-        requester_name: displayName(user),
-        target_name: requestForm.targetName.trim() || null,
-        school: requestForm.school.trim() || null,
-        faculty: requestForm.faculty.trim() || null,
-        department: requestForm.department.trim() || null,
-        level: requestForm.level.trim() || null,
-        hostel: requestForm.hostel.trim() || null,
-        clues: requestForm.clues.trim() || null,
-        status: "Open",
-      });
+      const { error: insertError } = await supabase
+        .from("requests")
+        .insert({
+          user_id: user.id,
+          requester_name: displayName(user),
+          target_name: requestForm.targetName.trim() || null,
+          school: requestForm.school.trim() || null,
+          faculty: requestForm.faculty.trim() || null,
+          department: requestForm.department.trim() || null,
+          level: requestForm.level.trim() || null,
+          hostel: requestForm.hostel.trim() || null,
+          clues: requestForm.clues.trim() || null,
+          status: "Open",
+        });
 
       if (insertError) throw insertError;
 
@@ -170,9 +176,12 @@ export default function RequestsPage() {
         hostel: "",
         clues: "",
       });
+
       setShowCreate(false);
+
       await loadRequests();
     } catch (err: any) {
+      console.error("Create request error:", err);
       setError(err?.message || "We couldn't create the request.");
     } finally {
       setSubmitting(false);
@@ -195,7 +204,9 @@ export default function RequestsPage() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) throw new Error("Please sign in first.");
+      if (!user) {
+        throw new Error("Please sign in first.");
+      }
 
       const { error: insertError } = await supabase
         .from("request_responses")
@@ -210,15 +221,20 @@ export default function RequestsPage() {
 
       setResponseText("");
       setRespondingTo(null);
+
       await loadRequests();
     } catch (err: any) {
+      console.error("Response error:", err);
       setError(err?.message || "We couldn't submit your response.");
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function vote(responseId: string, voteType: "up" | "down") {
+  async function vote(
+    responseId: string,
+    voteType: "up" | "down"
+  ) {
     setError("");
 
     try {
@@ -231,50 +247,73 @@ export default function RequestsPage() {
         return;
       }
 
+      setCurrentUserId(user.id);
+
       const existing = feedback.find(
-        (item) => item.response_id === responseId && item.user_id === user.id
+        (item) =>
+          item.response_id === responseId &&
+          item.user_id === user.id
       );
 
       if (existing?.vote === voteType) {
-        const { error } = await supabase
+        const { error: deleteError } = await supabase
           .from("response_feedback")
           .delete()
           .eq("id", existing.id);
-        if (error) throw error;
+
+        if (deleteError) throw deleteError;
       } else if (existing) {
-        const { error } = await supabase
+        const { error: updateError } = await supabase
           .from("response_feedback")
-          .update({ vote: voteType, voter_name: displayName(user) })
+          .update({
+            vote: voteType,
+            voter_name: displayName(user),
+          })
           .eq("id", existing.id);
-        if (error) throw error;
+
+        if (updateError) throw updateError;
       } else {
-        const { error } = await supabase.from("response_feedback").insert({
-          response_id: responseId,
-          user_id: user.id,
-          voter_name: displayName(user),
-          vote: voteType,
-        });
-        if (error) throw error;
+        const { error: insertError } = await supabase
+          .from("response_feedback")
+          .insert({
+            response_id: responseId,
+            user_id: user.id,
+            voter_name: displayName(user),
+            vote: voteType,
+          });
+
+        if (insertError) throw insertError;
       }
 
       await loadRequests();
     } catch (err: any) {
-      console.error(err);
-      setError(err?.message || "Couldn't save your reaction.");
+      console.error("Reaction error:", err);
+      setError(
+        err?.message || "Couldn't save your reaction."
+      );
     }
   }
 
   const responseList = (requestId: string) =>
-    responses.filter((item) => item.request_id === requestId);
+    responses.filter(
+      (item) => item.request_id === requestId
+    );
 
-  const countVotes = (responseId: string, type: "up" | "down") =>
+  const countVotes = (
+    responseId: string,
+    type: "up" | "down"
+  ) =>
     feedback.filter(
-      (item) => item.response_id === responseId && item.vote === type
+      (item) =>
+        item.response_id === responseId &&
+        item.vote === type
     ).length;
 
   const myVote = (responseId: string) =>
     feedback.find(
-      (item) => item.response_id === responseId && item.user_id === currentUserId
+      (item) =>
+        item.response_id === responseId &&
+        item.user_id === currentUserId
     )?.vote;
 
   return (
@@ -287,15 +326,18 @@ export default function RequestsPage() {
             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[#cdbd96]">
               Community
             </p>
+
             <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
               Requests
             </h1>
+
             <p className="mt-2 max-w-xl text-sm leading-6 text-[#918d84]">
               Find someone through the people who may know them.
             </p>
           </div>
 
           <button
+            type="button"
             onClick={() => setShowCreate(true)}
             className="pf-button-primary w-full sm:w-auto"
           >
@@ -306,22 +348,38 @@ export default function RequestsPage() {
 
         {error && (
           <div className="mt-6 flex items-start gap-3 border border-red-400/10 bg-red-400/[0.04] p-4">
-            <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-300" />
-            <p className="text-sm text-red-300">{error}</p>
+            <AlertCircle
+              size={18}
+              className="mt-0.5 shrink-0 text-red-300"
+            />
+
+            <p className="text-sm text-red-300">
+              {error}
+            </p>
           </div>
         )}
 
         {loading ? (
           <div className="flex min-h-[40vh] items-center justify-center">
             <div className="flex items-center gap-3 text-sm text-[#918d84]">
-              <Loader2 size={18} className="animate-spin" />
+              <Loader2
+                size={18}
+                className="animate-spin"
+              />
               Loading requests...
             </div>
           </div>
         ) : requests.length === 0 ? (
           <div className="mt-10 border border-white/[0.07] bg-[#141413] p-12 text-center">
-            <Users size={34} className="mx-auto mb-4 text-[#625f58]" />
-            <h2 className="text-lg font-medium">No requests yet</h2>
+            <Users
+              size={34}
+              className="mx-auto mb-4 text-[#625f58]"
+            />
+
+            <h2 className="text-lg font-medium">
+              No requests yet
+            </h2>
+
             <p className="mt-2 text-sm text-[#918d84]">
               Create the first request and let the network help.
             </p>
@@ -329,8 +387,13 @@ export default function RequestsPage() {
         ) : (
           <div className="mt-10 space-y-8">
             {requests.map((request) => {
-              const requestResponses = responseList(request.id);
-              const isOpen = (request.status || "Open").toLowerCase() === "open";
+              const requestResponses = responseList(
+                request.id
+              );
+
+              const isOpen =
+                (request.status || "Open").toLowerCase() ===
+                "open";
 
               return (
                 <article
@@ -350,36 +413,59 @@ export default function RequestsPage() {
                       >
                         {request.status || "Open"}
                       </span>
+
                       <span className="text-[10px] uppercase tracking-[0.16em] text-[#625f58]">
                         Finding someone
                       </span>
                     </div>
 
                     <h2 className="mt-5 text-2xl font-semibold tracking-tight text-[#f1eee8]">
-                      {request.target_name || "Person not named"}
+                      {request.target_name ||
+                        "Person not named"}
                     </h2>
 
                     <div className="mt-3 flex flex-wrap gap-x-2 gap-y-1 text-sm text-[#cbc7be]">
-                      {request.department && <span>{request.department}</span>}
-                      {request.department && request.school && (
-                        <span className="text-[#625f58]">·</span>
+                      {request.department && (
+                        <span>
+                          {request.department}
+                        </span>
                       )}
-                      {request.school && <span>{request.school}</span>}
+
+                      {request.department &&
+                        request.school && (
+                          <span className="text-[#625f58]">
+                            ·
+                          </span>
+                        )}
+
+                      {request.school && (
+                        <span>
+                          {request.school}
+                        </span>
+                      )}
+
                       {request.level && (
                         <>
-                          <span className="text-[#625f58]">·</span>
-                          <span>{request.level} Level</span>
+                          <span className="text-[#625f58]">
+                            ·
+                          </span>
+
+                          <span>
+                            {request.level} Level
+                          </span>
                         </>
                       )}
                     </div>
 
-                    {(request.faculty || request.hostel) && (
+                    {(request.faculty ||
+                      request.hostel) && (
                       <div className="mt-4 flex flex-wrap gap-2">
                         {request.faculty && (
                           <span className="border border-white/[0.06] bg-white/[0.025] px-2.5 py-1.5 text-xs text-[#918d84]">
                             {request.faculty}
                           </span>
                         )}
+
                         {request.hostel && (
                           <span className="border border-white/[0.06] bg-white/[0.025] px-2.5 py-1.5 text-xs text-[#918d84]">
                             {request.hostel}
@@ -393,6 +479,7 @@ export default function RequestsPage() {
                         <p className="text-[10px] uppercase tracking-[0.16em] text-[#625f58]">
                           Additional clues
                         </p>
+
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-[#cbc7be]">
                           {request.clues}
                         </p>
@@ -400,13 +487,21 @@ export default function RequestsPage() {
                     )}
 
                     <div className="mt-7 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#625f58]">
-                      <span>Requested by</span>
-                      <span className="text-[#918d84]">
-                        {request.requester_name || "Member"}
-                      </span>
-                      <span>·</span>
                       <span>
-                        {new Date(request.created_at).toLocaleDateString()}
+                        Requested by
+                      </span>
+
+                      <span className="text-[#918d84]">
+                        {request.requester_name ||
+                          "Member"}
+                      </span>
+
+                      <span>·</span>
+
+                      <span>
+                        {new Date(
+                          request.created_at
+                        ).toLocaleDateString()}
                       </span>
                     </div>
                   </div>
@@ -417,12 +512,20 @@ export default function RequestsPage() {
                         <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#cdbd96]">
                           Responses
                         </p>
+
                         <p className="mt-1 text-sm text-[#918d84]">
-                          {requestResponses.length === 0
+                          {requestResponses.length ===
+                          0
                             ? "No one has responded yet."
-                            : `${requestResponses.length} ${requestResponses.length === 1 ? "person has" : "people have"} responded`}
+                            : `${requestResponses.length} ${
+                                requestResponses.length ===
+                                1
+                                  ? "person has"
+                                  : "people have"
+                              } responded`}
                         </p>
                       </div>
+
                       <span className="text-sm text-[#625f58]">
                         {requestResponses.length}
                       </span>
@@ -430,96 +533,165 @@ export default function RequestsPage() {
 
                     {requestResponses.length > 0 && (
                       <div className="mt-5 space-y-0 border-l border-white/[0.08] pl-4 sm:pl-5">
-                        {requestResponses.map((response, index) => {
-                          const vote = myVote(response.id);
+                        {requestResponses.map(
+                          (response, index) => {
+                            /*
+                             * IMPORTANT:
+                             * Do NOT call this variable "vote".
+                             * The page already has a vote() function.
+                             * Naming this myReaction prevents the
+                             * "vote is not a function" runtime error.
+                             */
+                            const myReaction =
+                              myVote(response.id);
 
-                          return (
-                            <div
-                              key={response.id}
-                              className={`relative py-4 ${index > 0 ? "border-t border-white/[0.05]" : ""}`}
-                            >
-                              <div className="absolute -left-[25px] top-5 flex h-4 w-4 items-center justify-center rounded-full border border-[#cdbd96]/30 bg-[#10100f] sm:-left-[29px]">
-                                <span className="h-1.5 w-1.5 rounded-full bg-[#cdbd96]" />
-                              </div>
-
-                              <div className="flex gap-3">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/[0.07] bg-[#181817] text-xs font-medium text-[#cdbd96]">
-                                  {(response.responder_name || "M").charAt(0).toUpperCase()}
+                            return (
+                              <div
+                                key={response.id}
+                                className={`relative py-4 ${
+                                  index > 0
+                                    ? "border-t border-white/[0.05]"
+                                    : ""
+                                }`}
+                              >
+                                <div className="absolute -left-[25px] top-5 flex h-4 w-4 items-center justify-center rounded-full border border-[#cdbd96]/30 bg-[#10100f] sm:-left-[29px]">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-[#cdbd96]" />
                                 </div>
 
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                                    <span className="text-sm font-medium text-[#ebe8e1]">
-                                      {response.responder_name || "Member"}
-                                    </span>
-                                    <span className="text-[11px] text-[#625f58]">
-                                      responded
-                                    </span>
-                                    <span className="text-[11px] text-[#625f58]">
-                                      · {new Date(response.created_at).toLocaleDateString()}
-                                    </span>
+                                <div className="flex gap-3">
+                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/[0.07] bg-[#181817] text-xs font-medium text-[#cdbd96]">
+                                    {(
+                                      response.responder_name ||
+                                      "M"
+                                    )
+                                      .charAt(0)
+                                      .toUpperCase()}
                                   </div>
 
-                                  <p className="mt-2 text-sm leading-6 text-[#cbc7be]">
-                                    {response.response}
-                                  </p>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                      <span className="text-sm font-medium text-[#ebe8e1]">
+                                        {response.responder_name ||
+                                          "Member"}
+                                      </span>
 
-                                  <div className="mt-3 flex items-center gap-2">
-                                    <button
-                                      onClick={() => vote(response.id, "up")}
-                                      aria-label="Like response"
-                                      className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs transition ${
-                                        vote === "up"
-                                          ? "border-[#cdbd96]/35 bg-[#cdbd96]/10 text-[#e6d8b2]"
-                                          : "border-white/[0.07] bg-[#141413] text-[#918d84] hover:border-white/[0.13] hover:text-[#ebe8e1]"
-                                      }`}
-                                    >
-                                      <span aria-hidden="true">👍</span>
-                                      <span>{countVotes(response.id, "up")}</span>
-                                    </button>
+                                      <span className="text-[11px] text-[#625f58]">
+                                        responded
+                                      </span>
 
-                                    <button
-                                      onClick={() => vote(response.id, "down")}
-                                      aria-label="Dislike response"
-                                      className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs transition ${
-                                        vote === "down"
-                                          ? "border-white/[0.16] bg-white/[0.06] text-[#ebe8e1]"
-                                          : "border-white/[0.07] bg-[#141413] text-[#918d84] hover:border-white/[0.13] hover:text-[#ebe8e1]"
-                                      }`}
-                                    >
-                                      <span aria-hidden="true">👎</span>
-                                      <span>{countVotes(response.id, "down")}</span>
-                                    </button>
+                                      <span className="text-[11px] text-[#625f58]">
+                                        ·{" "}
+                                        {new Date(
+                                          response.created_at
+                                        ).toLocaleDateString()}
+                                      </span>
+                                    </div>
+
+                                    <p className="mt-2 text-sm leading-6 text-[#cbc7be]">
+                                      {response.response}
+                                    </p>
+
+                                    <div className="mt-3 flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          vote(
+                                            response.id,
+                                            "up"
+                                          )
+                                        }
+                                        aria-label="Like response"
+                                        className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs transition ${
+                                          myReaction ===
+                                          "up"
+                                            ? "border-[#cdbd96]/35 bg-[#cdbd96]/10 text-[#e6d8b2]"
+                                            : "border-white/[0.07] bg-[#141413] text-[#918d84] hover:border-white/[0.13] hover:text-[#ebe8e1]"
+                                        }`}
+                                      >
+                                        <span aria-hidden="true">
+                                          👍
+                                        </span>
+
+                                        <span>
+                                          {countVotes(
+                                            response.id,
+                                            "up"
+                                          )}
+                                        </span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          vote(
+                                            response.id,
+                                            "down"
+                                          )
+                                        }
+                                        aria-label="Dislike response"
+                                        className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs transition ${
+                                          myReaction ===
+                                          "down"
+                                            ? "border-white/[0.16] bg-white/[0.06] text-[#ebe8e1]"
+                                            : "border-white/[0.07] bg-[#141413] text-[#918d84] hover:border-white/[0.13] hover:text-[#ebe8e1]"
+                                        }`}
+                                      >
+                                        <span aria-hidden="true">
+                                          👎
+                                        </span>
+
+                                        <span>
+                                          {countVotes(
+                                            response.id,
+                                            "down"
+                                          )}
+                                        </span>
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          }
+                        )}
                       </div>
                     )}
 
                     <div className="mt-6">
-                      {respondingTo === request.id ? (
+                      {respondingTo ===
+                      request.id ? (
                         <form
-                          onSubmit={(event) => submitResponse(event, request.id)}
+                          onSubmit={(event) =>
+                            submitResponse(
+                              event,
+                              request.id
+                            )
+                          }
                           className="border border-white/[0.07] bg-[#141413] p-4"
                         >
                           <p className="text-[10px] uppercase tracking-[0.16em] text-[#625f58]">
                             Your response
                           </p>
+
                           <textarea
                             value={responseText}
-                            onChange={(event) => setResponseText(event.target.value)}
+                            onChange={(event) =>
+                              setResponseText(
+                                event.target.value
+                              )
+                            }
                             rows={3}
                             placeholder="Share what you know about this person..."
                             className="mt-3 w-full resize-none border border-white/[0.07] bg-[#0c0c0b] px-4 py-3 text-sm text-[#ebe8e1] placeholder:text-[#625f58] focus:border-[#cdbd96]/35"
                           />
+
                           <div className="mt-3 flex justify-end gap-2">
                             <button
                               type="button"
                               onClick={() => {
-                                setRespondingTo(null);
+                                setRespondingTo(
+                                  null
+                                );
                                 setResponseText("");
                               }}
                               className="pf-button-secondary"
@@ -527,9 +699,13 @@ export default function RequestsPage() {
                               <X size={15} />
                               Cancel
                             </button>
+
                             <button
                               type="submit"
-                              disabled={submitting || !responseText.trim()}
+                              disabled={
+                                submitting ||
+                                !responseText.trim()
+                              }
                               className="pf-button-primary disabled:opacity-40"
                             >
                               <Send size={15} />
@@ -539,7 +715,12 @@ export default function RequestsPage() {
                         </form>
                       ) : (
                         <button
-                          onClick={() => setRespondingTo(request.id)}
+                          type="button"
+                          onClick={() =>
+                            setRespondingTo(
+                              request.id
+                            )
+                          }
                           className="inline-flex w-full items-center justify-center gap-2 border border-white/[0.08] bg-[#141413] px-4 py-3 text-sm text-[#cbc7be] transition hover:border-[#cdbd96]/25 hover:text-[#ebe8e1] sm:w-auto"
                         >
                           <MessageCircle size={15} />
@@ -563,42 +744,119 @@ export default function RequestsPage() {
                 <p className="text-[10px] uppercase tracking-[0.18em] text-[#cdbd96]">
                   Community request
                 </p>
-                <h2 className="mt-2 text-xl font-semibold">New request</h2>
+
+                <h2 className="mt-2 text-xl font-semibold">
+                  New request
+                </h2>
+
                 <p className="mt-1 text-sm leading-6 text-[#918d84]">
-                  Give people enough information to recognise the person.
+                  Give people enough information to
+                  recognise the person.
                 </p>
               </div>
+
               <button
-                onClick={() => setShowCreate(false)}
+                type="button"
+                onClick={() =>
+                  setShowCreate(false)
+                }
                 className="p-2 text-[#918d84] hover:bg-white/[0.04] hover:text-[#ebe8e1]"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={createRequest} className="mt-7 space-y-4">
+            <form
+              onSubmit={createRequest}
+              className="mt-7 space-y-4"
+            >
               <Field
                 label="Name"
                 value={requestForm.targetName}
                 onChange={(value) =>
-                  setRequestForm((current) => ({ ...current, targetName: value }))
+                  setRequestForm((current) => ({
+                    ...current,
+                    targetName: value,
+                  }))
                 }
                 placeholder="Name or partial name"
               />
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="School" value={requestForm.school} onChange={(value) => setRequestForm((c) => ({ ...c, school: value }))} placeholder="School or institution" />
-                <Field label="Faculty" value={requestForm.faculty} onChange={(value) => setRequestForm((c) => ({ ...c, faculty: value }))} placeholder="Faculty" />
-                <Field label="Department" value={requestForm.department} onChange={(value) => setRequestForm((c) => ({ ...c, department: value }))} placeholder="Department" />
-                <Field label="Level" value={requestForm.level} onChange={(value) => setRequestForm((c) => ({ ...c, level: value }))} placeholder="100" />
-                <Field label="Hostel" value={requestForm.hostel} onChange={(value) => setRequestForm((c) => ({ ...c, hostel: value }))} placeholder="Hostel" />
+                <Field
+                  label="School"
+                  value={requestForm.school}
+                  onChange={(value) =>
+                    setRequestForm((current) => ({
+                      ...current,
+                      school: value,
+                    }))
+                  }
+                  placeholder="School or institution"
+                />
+
+                <Field
+                  label="Faculty"
+                  value={requestForm.faculty}
+                  onChange={(value) =>
+                    setRequestForm((current) => ({
+                      ...current,
+                      faculty: value,
+                    }))
+                  }
+                  placeholder="Faculty"
+                />
+
+                <Field
+                  label="Department"
+                  value={requestForm.department}
+                  onChange={(value) =>
+                    setRequestForm((current) => ({
+                      ...current,
+                      department: value,
+                    }))
+                  }
+                  placeholder="Department"
+                />
+
+                <Field
+                  label="Level"
+                  value={requestForm.level}
+                  onChange={(value) =>
+                    setRequestForm((current) => ({
+                      ...current,
+                      level: value,
+                    }))
+                  }
+                  placeholder="100"
+                />
+
+                <Field
+                  label="Hostel"
+                  value={requestForm.hostel}
+                  onChange={(value) =>
+                    setRequestForm((current) => ({
+                      ...current,
+                      hostel: value,
+                    }))
+                  }
+                  placeholder="Hostel"
+                />
               </div>
 
               <div>
-                <label className="mb-2 block text-xs text-[#918d84]">Additional clues</label>
+                <label className="mb-2 block text-xs text-[#918d84]">
+                  Additional clues
+                </label>
+
                 <textarea
                   value={requestForm.clues}
-                  onChange={(event) => setRequestForm((c) => ({ ...c, clues: event.target.value }))}
+                  onChange={(event) =>
+                    setRequestForm((current) => ({
+                      ...current,
+                      clues: event.target.value,
+                    }))
+                  }
                   rows={4}
                   placeholder="Group, class, appearance, where you last saw them, or anything else useful..."
                   className="w-full resize-none border border-white/[0.07] bg-[#0c0c0b] px-4 py-3 text-sm text-[#ebe8e1] placeholder:text-[#625f58] focus:border-[#cdbd96]/35"
@@ -610,7 +868,15 @@ export default function RequestsPage() {
                 disabled={submitting}
                 className="pf-button-primary w-full disabled:opacity-40"
               >
-                {submitting ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                {submitting ? (
+                  <Loader2
+                    size={16}
+                    className="animate-spin"
+                  />
+                ) : (
+                  <Plus size={16} />
+                )}
+
                 Create request
               </button>
             </form>
@@ -634,10 +900,15 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-xs text-[#918d84]">{label}</label>
+      <label className="mb-2 block text-xs text-[#918d84]">
+        {label}
+      </label>
+
       <input
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         placeholder={placeholder}
         className="w-full border border-white/[0.07] bg-[#0c0c0b] px-4 py-3 text-sm text-[#ebe8e1] placeholder:text-[#625f58] focus:border-[#cdbd96]/35"
       />

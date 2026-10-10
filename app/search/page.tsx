@@ -1,18 +1,20 @@
-
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
+import { FormEvent, useState } from "react";
 import {
-  Search,
+  ArrowRight,
+  Building2,
+  ChevronDown,
+  GraduationCap,
+  Home,
+  MapPin,
+  Search as SearchIcon,
   SlidersHorizontal,
   UserRound,
   X,
-  Loader2,
-  AlertCircle,
-  ArrowRight,
 } from "lucide-react";
 
-import Navbar from "../components/Navbar";
 import { supabase } from "../../src/lib/supabase";
 
 type Person = {
@@ -29,61 +31,55 @@ type Person = {
   class_name: string | null;
   matric_number: string | null;
   hostel: string | null;
+  room: string | null;
+  state: string | null;
+  lga: string | null;
 };
 
-type SearchForm = {
+type SearchFilters = {
   name: string;
   nickname: string;
-  department: string;
-  faculty: string;
-  level: string;
   matricNumber: string;
-  hostel: string;
+  school: string;
+  faculty: string;
+  department: string;
+  level: string;
   className: string;
+  hostel: string;
+  room: string;
+  state: string;
+  lga: string;
 };
 
-const emptyForm: SearchForm = {
+const emptyFilters: SearchFilters = {
   name: "",
   nickname: "",
-  department: "",
-  faculty: "",
-  level: "",
   matricNumber: "",
-  hostel: "",
+  school: "",
+  faculty: "",
+  department: "",
+  level: "",
   className: "",
+  hostel: "",
+  room: "",
+  state: "",
+  lga: "",
 };
 
 export default function SearchPage() {
-  const [form, setForm] = useState<SearchForm>(emptyForm);
+  const [filters, setFilters] = useState<SearchFilters>(emptyFilters);
   const [results, setResults] = useState<Person[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [error, setError] = useState("");
   const [searched, setSearched] = useState(false);
-  const [showFilters, setShowFilters] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    checkSession();
-  }, []);
+  async function handleSearch(event?: FormEvent) {
+    event?.preventDefault();
 
-  async function checkSession() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      await searchPeople(emptyForm, false);
-    }
-
-    setInitialLoading(false);
-  }
-
-  async function searchPeople(
-    searchForm: SearchForm,
-    markAsSearched = true
-  ) {
     setLoading(true);
     setError("");
+    setSearched(true);
 
     try {
       const {
@@ -91,8 +87,24 @@ export default function SearchPage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
+        setError("Please sign in to search the directory.");
         setResults([]);
-        setError("Please sign in to search PeopleFind.");
+        return;
+      }
+
+      const clean = Object.fromEntries(
+        Object.entries(filters).map(([key, value]) => [
+          key,
+          value.trim(),
+        ])
+      ) as SearchFilters;
+
+      const hasSearch =
+        Object.values(clean).some(Boolean);
+
+      if (!hasSearch) {
+        setResults([]);
+        setError("Enter at least one search clue.");
         return;
       }
 
@@ -100,69 +112,114 @@ export default function SearchPage() {
         .from("people")
         .select(
           `
-            id,
-            name,
-            first_name,
-            middle_name,
-            last_name,
-            nickname,
-            school,
-            faculty,
-            department,
-            level,
-            class_name,
-            matric_number,
-            hostel
-          `
+          id,
+          name,
+          first_name,
+          middle_name,
+          last_name,
+          nickname,
+          school,
+          faculty,
+          department,
+          level,
+          class_name,
+          matric_number,
+          hostel,
+          room,
+          state,
+          lga
+        `
         )
-        .order("name", { ascending: true });
+        .limit(100);
 
-      const name = searchForm.name.trim();
-      const nickname = searchForm.nickname.trim();
-      const department = searchForm.department.trim();
-      const faculty = searchForm.faculty.trim();
-      const level = searchForm.level.trim();
-      const matricNumber = searchForm.matricNumber.trim();
-      const hostel = searchForm.hostel.trim();
-      const className = searchForm.className.trim();
+      if (clean.name) {
+        const value = escapeLike(clean.name);
 
-      /*
-       * Each filled field adds another filter.
-       * Multiple fields therefore narrow the result.
-       */
-
-      if (name) {
         query = query.or(
-          `name.ilike.%${name}%,first_name.ilike.%${name}%,middle_name.ilike.%${name}%,last_name.ilike.%${name}%`
+          [
+            `name.ilike.%${value}%`,
+            `first_name.ilike.%${value}%`,
+            `middle_name.ilike.%${value}%`,
+            `last_name.ilike.%${value}%`,
+          ].join(",")
         );
       }
 
-      if (nickname) {
-        query = query.ilike("nickname", `%${nickname}%`);
+      if (clean.nickname) {
+        query = query.ilike(
+          "nickname",
+          `%${escapeLike(clean.nickname)}%`
+        );
       }
 
-      if (department) {
-        query = query.ilike("department", `%${department}%`);
+      if (clean.matricNumber) {
+        query = query.ilike(
+          "matric_number",
+          `%${escapeLike(clean.matricNumber)}%`
+        );
       }
 
-      if (faculty) {
-        query = query.ilike("faculty", `%${faculty}%`);
+      if (clean.school) {
+        query = query.ilike(
+          "school",
+          `%${escapeLike(clean.school)}%`
+        );
       }
 
-      if (level) {
-        query = query.ilike("level", `%${level}%`);
+      if (clean.faculty) {
+        query = query.ilike(
+          "faculty",
+          `%${escapeLike(clean.faculty)}%`
+        );
       }
 
-      if (matricNumber) {
-        query = query.ilike("matric_number", `%${matricNumber}%`);
+      if (clean.department) {
+        query = query.ilike(
+          "department",
+          `%${escapeLike(clean.department)}%`
+        );
       }
 
-      if (hostel) {
-        query = query.ilike("hostel", `%${hostel}%`);
+      if (clean.level) {
+        query = query.ilike(
+          "level",
+          `%${escapeLike(clean.level)}%`
+        );
       }
 
-      if (className) {
-        query = query.ilike("class_name", `%${className}%`);
+      if (clean.className) {
+        query = query.ilike(
+          "class_name",
+          `%${escapeLike(clean.className)}%`
+        );
+      }
+
+      if (clean.hostel) {
+        query = query.ilike(
+          "hostel",
+          `%${escapeLike(clean.hostel)}%`
+        );
+      }
+
+      if (clean.room) {
+        query = query.ilike(
+          "room",
+          `%${escapeLike(clean.room)}%`
+        );
+      }
+
+      if (clean.state) {
+        query = query.ilike(
+          "state",
+          `%${escapeLike(clean.state)}%`
+        );
+      }
+
+      if (clean.lga) {
+        query = query.ilike(
+          "lga",
+          `%${escapeLike(clean.lga)}%`
+        );
       }
 
       const { data, error: searchError } = await query;
@@ -172,279 +229,318 @@ export default function SearchPage() {
       }
 
       setResults((data ?? []) as Person[]);
-      setSearched(markAsSearched);
-    } catch (err: any) {
-      console.error("People search error:", err);
-
+    } catch (err) {
       setResults([]);
+
       setError(
-        err?.message ||
-          "We couldn't complete the search. Please try again."
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while searching."
       );
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const hasSearchValue = Object.values(form).some(
-      (value) => value.trim().length > 0
-    );
-
-    if (!hasSearchValue) {
-      setError("Enter at least one clue to search.");
-      return;
-    }
-
-    await searchPeople(form);
-  }
-
-  function updateField(field: keyof SearchForm, value: string) {
-    setForm((current) => ({
+  function updateFilter(
+    key: keyof SearchFilters,
+    value: string
+  ) {
+    setFilters((current) => ({
       ...current,
-      [field]: value,
+      [key]: value,
     }));
   }
 
   function clearSearch() {
-    setForm(emptyForm);
+    setFilters(emptyFilters);
     setResults([]);
-    setError("");
     setSearched(false);
+    setError("");
   }
 
-  if (initialLoading) {
-    return (
-      <main className="min-h-screen bg-[#090909] text-[#E8E5DF]">
-        <Navbar />
-
-        <div className="flex min-h-[70vh] items-center justify-center">
-          <div className="flex items-center gap-3 text-sm text-[#77736D]">
-            <Loader2 size={18} className="animate-spin" />
-            Loading search...
-          </div>
-        </div>
-      </main>
-    );
-  }
+  const activeFilterCount = Object.values(filters).filter(
+    Boolean
+  ).length;
 
   return (
-    <main className="min-h-screen bg-[#090909] text-[#E8E5DF]">
-      <Navbar />
-
-      <section className="mx-auto max-w-6xl px-6 py-10">
-        {/* Header */}
-        <div className="mb-8">
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-[#77736D]">
-            PeopleFind
+    <main className="min-h-screen bg-[#0c0c0b] text-[#ebe8e1]">
+      <div className="mx-auto max-w-7xl px-5 py-10 sm:px-6 lg:py-14">
+        {/* HEADER */}
+        <div className="max-w-3xl">
+          <p className="mb-3 text-[10px] uppercase tracking-[0.2em] text-[#6c6861]">
+            Directory search
           </p>
 
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Search people
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+            Find someone from what you know.
           </h1>
 
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8E8A83]">
-            Find someone using whatever information you know. You can use one
-            clue or combine several clues to narrow the results.
+          <p className="mt-4 text-sm leading-6 text-[#77736c] sm:text-base">
+            Search using one clue or combine several details to narrow
+            the results.
           </p>
         </div>
 
-        {/* Search panel */}
-        <div className="rounded-2xl border border-white/[0.07] bg-[#111111] p-6">
+        {/* SEARCH PANEL */}
+        <section className="mt-10 rounded-2xl border border-white/[0.07] bg-[#141413] p-4 sm:p-5">
           <form onSubmit={handleSearch}>
-            <div className="mb-5 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal
-                  size={17}
-                  className="text-[#8E8A83]"
+            {/* MAIN SEARCH */}
+            <div className="flex flex-col gap-3 lg:flex-row">
+              <div className="relative flex-1">
+                <SearchIcon
+                  size={18}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-[#68645d]"
                 />
 
-                <h2 className="text-sm font-medium text-[#C9C5BE]">
-                  Search clues
-                </h2>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowFilters((value) => !value)}
-                className="text-xs text-[#77736D] transition hover:text-[#C9C5BE]"
-              >
-                {showFilters ? "Hide filters" : "Show filters"}
-              </button>
-            </div>
-
-            {showFilters && (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <SearchField
-                  label="Name"
-                  value={form.name}
-                  onChange={(value) => updateField("name", value)}
-                  placeholder="e.g. Daniel"
-                />
-
-                <SearchField
-                  label="Nickname"
-                  value={form.nickname}
-                  onChange={(value) => updateField("nickname", value)}
-                  placeholder="Nickname"
-                />
-
-                <SearchField
-                  label="Department"
-                  value={form.department}
-                  onChange={(value) => updateField("department", value)}
-                  placeholder="e.g. Computer Science"
-                />
-
-                <SearchField
-                  label="Faculty"
-                  value={form.faculty}
-                  onChange={(value) => updateField("faculty", value)}
-                  placeholder="e.g. Technology"
-                />
-
-                <SearchField
-                  label="Level"
-                  value={form.level}
-                  onChange={(value) => updateField("level", value)}
-                  placeholder="e.g. 100"
-                />
-
-                <SearchField
-                  label="Matric number"
-                  value={form.matricNumber}
-                  onChange={(value) =>
-                    updateField("matricNumber", value)
+                <input
+                  type="text"
+                  value={filters.name}
+                  onChange={(event) =>
+                    updateFilter("name", event.target.value)
                   }
-                  placeholder="Matric number"
-                />
-
-                <SearchField
-                  label="Hostel"
-                  value={form.hostel}
-                  onChange={(value) => updateField("hostel", value)}
-                  placeholder="e.g. Kuti Hall"
-                />
-
-                <SearchField
-                  label="Class"
-                  value={form.className}
-                  onChange={(value) => updateField("className", value)}
-                  placeholder="e.g. IPE 100"
+                  placeholder="Name or part of a name"
+                  className="h-12 w-full rounded-xl border border-white/[0.07] bg-[#0f0f0e] pl-11 pr-4 text-sm text-[#ebe8e1] placeholder:text-[#5f5c55] focus:border-[#cdbd96]/35"
                 />
               </div>
-            )}
 
-            {error && (
-              <div className="mt-5 flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/[0.05] p-4">
-                <AlertCircle
-                  size={17}
-                  className="mt-0.5 shrink-0 text-red-400"
-                />
-
-                <p className="break-words text-sm text-red-300">
-                  {error}
-                </p>
-              </div>
-            )}
-
-            <div className="mt-6 flex flex-wrap gap-2">
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#E8E5DF] px-5 py-3 text-sm font-medium text-[#090909] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#ebe8e1] px-6 text-sm font-semibold text-[#0c0c0b] transition hover:bg-white disabled:opacity-50"
               >
-                {loading ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Search size={16} />
-                )}
+                <SearchIcon size={16} />
 
-                {loading ? "Searching..." : "Search people"}
+                {loading ? "Searching..." : "Search"}
               </button>
+            </div>
 
+            {/* FILTER TOGGLE */}
+            <div className="mt-3 flex items-center justify-between">
               <button
                 type="button"
-                onClick={clearSearch}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] px-5 py-3 text-sm text-[#9B978F] transition hover:bg-[#171717]"
+                onClick={() =>
+                  setShowFilters((current) => !current)
+                }
+                className="inline-flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-medium text-[#88847d] transition hover:bg-[#1a1a18] hover:text-[#d6d2ca]"
               >
-                <X size={16} />
-                Clear
+                <SlidersHorizontal size={14} />
+
+                More search clues
+
+                {activeFilterCount > 0 && (
+                  <span className="rounded-full bg-[#cdbd96]/10 px-1.5 py-0.5 text-[10px] text-[#cdbd96]">
+                    {activeFilterCount}
+                  </span>
+                )}
+
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform ${
+                    showFilters ? "rotate-180" : ""
+                  }`}
+                />
               </button>
+
+              {activeFilterCount > 0 && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="inline-flex items-center gap-1.5 text-xs text-[#6f6b64] transition hover:text-[#cdbd96]"
+                >
+                  <X size={13} />
+                  Clear
+                </button>
+              )}
             </div>
+
+            {/* FILTERS */}
+            {showFilters && (
+              <div className="mt-4 grid gap-3 border-t border-white/[0.06] pt-4 sm:grid-cols-2 lg:grid-cols-3">
+                <FilterInput
+                  label="Nickname"
+                  value={filters.nickname}
+                  onChange={(value) =>
+                    updateFilter("nickname", value)
+                  }
+                />
+
+                <FilterInput
+                  label="Matric number"
+                  value={filters.matricNumber}
+                  onChange={(value) =>
+                    updateFilter("matricNumber", value)
+                  }
+                />
+
+                <FilterInput
+                  label="School"
+                  value={filters.school}
+                  onChange={(value) =>
+                    updateFilter("school", value)
+                  }
+                />
+
+                <FilterInput
+                  label="Faculty"
+                  value={filters.faculty}
+                  onChange={(value) =>
+                    updateFilter("faculty", value)
+                  }
+                />
+
+                <FilterInput
+                  label="Department"
+                  value={filters.department}
+                  onChange={(value) =>
+                    updateFilter("department", value)
+                  }
+                />
+
+                <FilterInput
+                  label="Level"
+                  value={filters.level}
+                  onChange={(value) =>
+                    updateFilter("level", value)
+                  }
+                  placeholder="e.g. 100"
+                />
+
+                <FilterInput
+                  label="Class"
+                  value={filters.className}
+                  onChange={(value) =>
+                    updateFilter("className", value)
+                  }
+                />
+
+                <FilterInput
+                  label="Hostel"
+                  value={filters.hostel}
+                  onChange={(value) =>
+                    updateFilter("hostel", value)
+                  }
+                />
+
+                <FilterInput
+                  label="Room"
+                  value={filters.room}
+                  onChange={(value) =>
+                    updateFilter("room", value)
+                  }
+                />
+
+                <FilterInput
+                  label="State"
+                  value={filters.state}
+                  onChange={(value) =>
+                    updateFilter("state", value)
+                  }
+                />
+
+                <FilterInput
+                  label="LGA"
+                  value={filters.lga}
+                  onChange={(value) =>
+                    updateFilter("lga", value)
+                  }
+                />
+              </div>
+            )}
           </form>
+        </section>
+
+        {/* ERROR */}
+        {error && (
+          <div className="mt-5 rounded-xl border border-[#d98282]/20 bg-[#d98282]/[0.06] px-4 py-3 text-sm text-[#dca0a0]">
+            {error}
+          </div>
+        )}
+
+        {/* RESULTS HEADER */}
+        {searched && !error && (
+          <div className="mt-10 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-[#625f58]">
+                Results
+              </p>
+
+              <h2 className="mt-1 text-lg font-semibold">
+                {loading
+                  ? "Searching..."
+                  : `${results.length} ${
+                      results.length === 1 ? "person" : "people"
+                    } found`}
+              </h2>
+            </div>
+
+            {results.length === 100 && (
+              <p className="text-xs text-[#625f58]">
+                Showing the first 100 results
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* RESULTS */}
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {results.map((person) => (
+            <PersonCard key={person.id} person={person} />
+          ))}
         </div>
 
-        {/* Results */}
-        <div className="mt-8">
-          {loading ? (
-            <div className="flex min-h-[250px] items-center justify-center rounded-2xl border border-white/[0.07] bg-[#111111]">
-              <div className="flex items-center gap-3 text-sm text-[#77736D]">
-                <Loader2 size={18} className="animate-spin" />
-                Searching...
-              </div>
-            </div>
-          ) : searched ? (
-            <>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-sm font-medium text-[#A7A39B]">
-                  Search results
-                </h2>
-
-                <span className="text-xs text-[#5F5C57]">
-                  {results.length} result
-                  {results.length === 1 ? "" : "s"}
-                </span>
+        {/* EMPTY */}
+        {searched &&
+          !loading &&
+          !error &&
+          results.length === 0 && (
+            <div className="mt-5 rounded-2xl border border-white/[0.07] bg-[#141413] px-6 py-14 text-center">
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.07] bg-[#1a1a18]">
+                <SearchIcon
+                  size={19}
+                  className="text-[#706c64]"
+                />
               </div>
 
-              {results.length === 0 ? (
-                <div className="flex min-h-[250px] flex-col items-center justify-center rounded-2xl border border-white/[0.07] bg-[#111111] px-6 text-center">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-[#171717]">
-                    <Search size={20} className="text-[#77736D]" />
-                  </div>
+              <h2 className="mt-5 text-base font-semibold">
+                No matching people found
+              </h2>
 
-                  <h3 className="font-medium">
-                    No matching person found
-                  </h3>
-
-                  <p className="mt-2 max-w-md text-sm leading-6 text-[#77736D]">
-                    Try removing one clue or searching with a different
-                    spelling.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {results.map((person) => (
-                    <PersonCard key={person.id} person={person} />
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex min-h-[250px] flex-col items-center justify-center rounded-2xl border border-white/[0.07] bg-[#111111] px-6 text-center">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-[#171717]">
-                <Search size={20} className="text-[#77736D]" />
-              </div>
-
-              <h3 className="font-medium">
-                Start with a clue
-              </h3>
-
-              <p className="mt-2 max-w-md text-sm leading-6 text-[#77736D]">
-                Enter a name, hostel, department, matric number, or any other
-                information you know.
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6f6b64]">
+                Try a different spelling, remove one of the clues, or
+                search using another detail you know.
               </p>
             </div>
           )}
-        </div>
-      </section>
+
+        {/* INITIAL STATE */}
+        {!searched && (
+          <div className="mt-10 grid gap-3 sm:grid-cols-3">
+            <SearchHint
+              icon={<UserRound size={17} />}
+              title="Name"
+              text="Search a full name or part of one."
+            />
+
+            <SearchHint
+              icon={<GraduationCap size={17} />}
+              title="School details"
+              text="Use school, faculty, department, level or class."
+            />
+
+            <SearchHint
+              icon={<Home size={17} />}
+              title="Location clues"
+              text="Try a hostel, room, state or LGA."
+            />
+          </div>
+        )}
+      </div>
     </main>
   );
 }
 
-function SearchField({
+function FilterInput({
   label,
   value,
   onChange,
@@ -453,117 +549,168 @@ function SearchField({
   label: string;
   value: string;
   onChange: (value: string) => void;
-  placeholder: string;
+  placeholder?: string;
 }) {
   return (
-    <div>
-      <label className="mb-2 block text-xs font-medium text-[#9B978F]">
+    <label className="block">
+      <span className="mb-1.5 block text-[11px] font-medium text-[#77736c]">
         {label}
-      </label>
+      </span>
 
       <input
+        type="text"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-xl border border-white/[0.08] bg-[#090909] px-4 py-3 text-sm text-[#E8E5DF] outline-none placeholder:text-[#55524D] transition focus:border-white/[0.18]"
+        placeholder={placeholder ?? `Search ${label.toLowerCase()}`}
+        className="h-11 w-full rounded-xl border border-white/[0.07] bg-[#0f0f0e] px-3.5 text-sm text-[#ebe8e1] placeholder:text-[#55524c] focus:border-[#cdbd96]/35"
       />
-    </div>
+    </label>
   );
 }
 
 function PersonCard({ person }: { person: Person }) {
+  const displayName =
+    person.name ||
+    [person.first_name, person.middle_name, person.last_name]
+      .filter(Boolean)
+      .join(" ") ||
+    "Unnamed person";
+
   return (
-    <article className="rounded-2xl border border-white/[0.07] bg-[#111111] p-5 transition hover:border-white/[0.12]">
+    <article className="group rounded-2xl border border-white/[0.07] bg-[#141413] p-5 transition hover:border-white/[0.12] hover:bg-[#181817]">
       <div className="flex items-start gap-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-[#171717]">
-          <UserRound size={19} className="text-[#A7A39B]" />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-[#1a1a18]">
+          <UserRound
+            size={18}
+            strokeWidth={1.6}
+            className="text-[#cdbd96]"
+          />
         </div>
 
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold text-[#E8E5DF]">
-            {person.name || "Unnamed person"}
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-semibold text-[#ebe8e1]">
+            {displayName}
           </h3>
 
           {person.nickname && (
-            <p className="mt-1 text-xs text-[#77736D]">
-              @{person.nickname}
+            <p className="mt-1 truncate text-xs text-[#77736c]">
+              {person.nickname}
             </p>
           )}
         </div>
       </div>
 
-      <div className="mt-5 grid gap-2 text-sm">
-        {person.department && (
-          <Detail
-            label="Department"
-            value={person.department}
-          />
+      <div className="mt-5 space-y-2.5">
+        {(person.department || person.faculty) && (
+          <div className="flex gap-2 text-xs text-[#77736c]">
+            <GraduationCap
+              size={14}
+              className="mt-0.5 shrink-0 text-[#625f58]"
+            />
+
+            <span className="line-clamp-2">
+              {[person.department, person.faculty]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </div>
         )}
 
-        {person.faculty && (
-          <Detail
-            label="Faculty"
-            value={person.faculty}
-          />
+        {(person.school || person.level) && (
+          <div className="flex gap-2 text-xs text-[#77736c]">
+            <Building2
+              size={14}
+              className="mt-0.5 shrink-0 text-[#625f58]"
+            />
+
+            <span>
+              {[person.school, person.level && `Level ${person.level}`]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </div>
         )}
 
-        {person.level && (
-          <Detail
-            label="Level"
-            value={person.level}
-          />
+        {(person.hostel || person.room) && (
+          <div className="flex gap-2 text-xs text-[#77736c]">
+            <Home
+              size={14}
+              className="mt-0.5 shrink-0 text-[#625f58]"
+            />
+
+            <span>
+              {[person.hostel, person.room && `Room ${person.room}`]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </div>
         )}
 
-        {person.class_name && (
-          <Detail
-            label="Class"
-            value={person.class_name}
-          />
-        )}
+        {(person.state || person.lga) && (
+          <div className="flex gap-2 text-xs text-[#77736c]">
+            <MapPin
+              size={14}
+              className="mt-0.5 shrink-0 text-[#625f58]"
+            />
 
-        {person.hostel && (
-          <Detail
-            label="Hostel"
-            value={person.hostel}
-          />
+            <span>
+              {[person.state, person.lga]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </div>
         )}
 
         {person.matric_number && (
-          <Detail
-            label="Matric"
-            value={person.matric_number}
-          />
+          <div className="border-t border-white/[0.05] pt-3 text-xs text-[#625f58]">
+            Matric:{" "}
+            <span className="text-[#85817a]">
+              {person.matric_number}
+            </span>
+          </div>
         )}
       </div>
 
-      {/* NEW: Full profile link */}
-      <a
+      <Link
         href={`/people/${person.id}`}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-[#171717] px-4 py-3 text-sm font-medium text-[#A7A39B] transition hover:border-white/[0.15] hover:bg-[#1D1D1D] hover:text-[#E8E5DF]"
+        className="mt-5 flex items-center justify-between rounded-xl border border-white/[0.06] bg-[#10100f] px-3.5 py-3 text-xs font-medium text-[#918d85] transition hover:border-white/[0.11] hover:text-[#ebe8e1]"
       >
-        View Full Profile
-        <ArrowRight size={15} />
-      </a>
+        View full profile
+        <ArrowRight size={14} />
+      </Link>
     </article>
   );
 }
 
-function Detail({
-  label,
-  value,
+function SearchHint({
+  icon,
+  title,
+  text,
 }: {
-  label: string;
-  value: string;
+  icon: React.ReactNode;
+  title: string;
+  text: string;
 }) {
   return (
-    <div className="flex gap-3 border-b border-white/[0.04] py-2 last:border-0">
-      <span className="w-24 shrink-0 text-xs text-[#5F5C57]">
-        {label}
-      </span>
+    <div className="rounded-2xl border border-white/[0.06] bg-[#141413] p-5">
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.07] bg-[#1a1a18] text-[#cdbd96]">
+        {icon}
+      </div>
 
-      <span className="min-w-0 text-xs text-[#A7A39B]">
-        {value}
-      </span>
+      <h3 className="mt-4 text-sm font-medium text-[#d1cdc5]">
+        {title}
+      </h3>
+
+      <p className="mt-1.5 text-xs leading-5 text-[#68645d]">
+        {text}
+      </p>
     </div>
   );
+}
+
+function escapeLike(value: string) {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_");
 }
