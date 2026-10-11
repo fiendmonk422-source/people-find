@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
   for (const item of pending ?? []) {
     const nextAttempts = Number(item.attempts ?? 0) + 1;
     const { error: claimError } = await admin.from("scan_reference_index")
-      .update({ status: "processing", attempts: nextAttempts, error: null })
+      .update({ status: "processing", attempts: nextAttempts, error_message: null, last_attempt_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq("person_id", item.person_id)
       .eq("photo_url_snapshot", item.photo_url_snapshot)
       .eq("status", "pending");
@@ -112,7 +112,9 @@ export async function POST(request: NextRequest) {
         embedding: `[${embedding.join(",")}]`,
         status: "ready",
         model_version: SCAN_CONFIG.modelVersion,
-        error: null,
+        error_message: null,
+        indexed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
         .eq("person_id", item.person_id)
         .eq("photo_url_snapshot", item.photo_url_snapshot);
@@ -123,7 +125,9 @@ export async function POST(request: NextRequest) {
       const detail = error instanceof Error ? error.message.slice(0, 240) : "unknown_index_error";
       await admin.from("scan_reference_index").update({
         status: "failed",
-        error: detail,
+        error_message: detail,
+        last_attempt_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
         .eq("person_id", item.person_id)
         .eq("photo_url_snapshot", item.photo_url_snapshot);
