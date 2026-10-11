@@ -1,67 +1,59 @@
 "use client";
 
 import { ChangeEvent, useEffect, useRef, useState } from "react";
-import * as faceapi from "@vladmandic/face-api";
-import { Camera, CheckCircle2, ImagePlus, Loader2, RotateCcw, ScanFace, ShieldCheck, X } from "lucide-react";
+import Link from "next/link";
+import {
+  Camera, CheckCircle2, ImagePlus, LoaderCircle, RefreshCw, ScanSearch, ShieldCheck, X,
+} from "lucide-react";
 import Navbar from "../components/Navbar";
-import { supabase } from "../../src/lib/supabase";
 
-const MODEL_PATH = "/models/face/";
-const MATCH_THRESHOLD = 0.6;
-type MatchResult = { distance: number; possibleMatch: boolean };
+type ScanMatch = {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  faculty: string | null;
+  distance: number;
+  profileUrl: string;
+};
+
+type MatchResponse = {
+  matches?: ScanMatch[];
+  note?: string;
+  error?: string;
+  hint?: string;
+};
+
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
 export default function ScanPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [userChecked, setUserChecked] = useState(false);
-  const [userSignedIn, setUserSignedIn] = useState(false);
-  const [modelsReady, setModelsReady] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [cameraLoading, setCameraLoading] = useState(false);
-  const [referenceUrl, setReferenceUrl] = useState("");
-  const [testImage, setTestImage] = useState<string | null>(null);
+  const [cameraBusy, setCameraBusy] = useState(false);
+  const [matching, setMatching] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<MatchResult | null>(null);
+  const [note, setNote] = useState("");
+  const [matches, setMatches] = useState<ScanMatch[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    async function initialise() {
-      try {
-        const { data } = await supabase.auth.getUser();
-        if (active) setUserSignedIn(Boolean(data.user));
-      } catch {
-        if (active) setError("Could not check your session. Refresh and sign in again.");
-      } finally {
-        if (active) setUserChecked(true);
-      }
-    }
-    void initialise();
-    Promise.all([
-      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_PATH),
-      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_PATH),
-      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_PATH),
-    ]).then(() => {
-      if (active) setModelsReady(true);
-    }).catch((cause: unknown) => {
-      console.error("Face model loading failed:", cause);
-      if (active) setError("Face models could not load. Run the model-download script and refresh this page.");
-    });
-    return () => {
-      active = false;
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-    };
-  }, []);
+    if (!previewUrl) return;
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
 
   useEffect(() => {
     if (!cameraOpen || !videoRef.current || !streamRef.current) return;
-    videoRef.current.srcObject = streamRef.current;
-    void videoRef.current.play().catch((cause) => {
-      console.error("Camera preview failed:", cause);
-      setError("Camera opened, but its preview did not start. Check browser permissions.");
-    });
+    const video = videoRef.current;
+    video.srcObject = streamRef.current;
+    void video.play().catch(() => setError("The camera opened, but its preview could not start."));
   }, [cameraOpen]);
+
+  useEffect(() => () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -70,32 +62,59 @@ export default function ScanPage() {
     setCameraOpen(false);
   }
 
+  function resetResults() {
+    setMatches([]);
+    setNote("");
+    setHasSearched(false);
+    setError("");
+  }
+
+  function selectImage(file: File) {
+    if (!file.type.startsWith("image/")) {
+      setError("Choose a valid image file.");
+      return;
+    }
+    if (file.size <= 0 || file.size > MAX_UPLOAD_BYTES) {
+      setError("Choose an image smaller than 8 MB.");
+      return;
+    }
+    stopCamera();
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    resetResults();
+  }
+
+  function handleUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) selectImage(file);
+  }
+
   async function openCamera() {
     setError("");
-    setResult(null);
-    setCameraLoading(true);
+    setCameraBusy(true);
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error("Camera access requires HTTPS or localhost and a supported browser.");
+        throw new Error("Camera access needs HTTPS or localhost. You can upload a photo instead.");
       }
       stopCamera();
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "user" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
       streamRef.current = stream;
       setCameraOpen(true);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not open the camera. Allow camera access or upload a photo instead.");
+      setError(cause instanceof Error ? cause.message : "Could not open the camera. Check browser permissions.");
     } finally {
-      setCameraLoading(false);
+      setCameraBusy(false);
     }
   }
 
-  function capturePhoto() {
+  async function capturePhoto() {
     const video = videoRef.current;
     if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !video.videoWidth) {
-      setError("The camera is not ready yet. Wait until the preview appears and try again.");
+      setError("The camera is not ready yet. Wait for the preview and try again.");
       return;
     }
     const canvas = document.createElement("canvas");
@@ -103,135 +122,180 @@ export default function ScanPage() {
     canvas.height = video.videoHeight;
     const context = canvas.getContext("2d");
     if (!context) {
-      setError("Could not capture the camera image.");
+      setError("Could not capture the image. Upload a photo instead.");
       return;
     }
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    setTestImage(canvas.toDataURL("image/jpeg", 0.92));
-    setResult(null);
-    setError("");
-    stopCamera();
-  }
-
-  function handleUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("Choose an image file.");
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+    if (!blob) {
+      setError("Could not prepare the captured image. Please try again.");
       return;
     }
-    if (file.size > 15 * 1024 * 1024) {
-      setError("Choose an image smaller than 15 MB.");
-      return;
-    }
-    stopCamera();
-    if (testImage?.startsWith("blob:")) URL.revokeObjectURL(testImage);
-    setTestImage(URL.createObjectURL(file));
-    setResult(null);
+    selectImage(new File([blob], "scan-photo.jpg", { type: "image/jpeg" }));
+  }
+
+  async function runMatch() {
+    if (!selectedFile || matching) return;
+    setMatching(true);
     setError("");
-  }
+    setNote("");
+    setMatches([]);
+    setHasSearched(false);
 
-  function loadImage(source: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      image.crossOrigin = "anonymous";
-      image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error("Could not load the reference image. Check that the URL is valid, not expired, and allows browser image access."));
-      image.src = source;
-    });
-  }
-
-  async function descriptorFor(source: string): Promise<Float32Array> {
-    const image = await loadImage(source);
-    const detection = await faceapi.detectSingleFace(image, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-    if (!detection) throw new Error("No clear face was detected in one of the images. Try a front-facing, well-lit photo.");
-    return detection.descriptor;
-  }
-
-  async function comparePhotos() {
-    if (!modelsReady) { setError("Wait until the face models finish loading."); return; }
-    if (!referenceUrl.trim() || !testImage) { setError("Add your reference photo URL and capture or upload a second photo."); return; }
-    setLoading(true);
-    setError("");
-    setResult(null);
     try {
-      const [referenceDescriptor, testDescriptor] = await Promise.all([
-        descriptorFor(referenceUrl.trim()),
-        descriptorFor(testImage),
-      ]);
-      const distance = faceapi.euclideanDistance(referenceDescriptor, testDescriptor);
-      setResult({ distance, possibleMatch: distance < MATCH_THRESHOLD });
+      const body = new FormData();
+      body.append("image", selectedFile);
+      const response = await fetch("/api/scan/match", {
+        method: "POST",
+        body,
+        cache: "no-store",
+      });
+      const payload = await response.json().catch(() => ({})) as MatchResponse;
+
+      if (!response.ok) {
+        if (response.status === 401) throw new Error("Please sign in before using Scan-to-Find.");
+        if (response.status === 403) throw new Error(payload.hint || "Your account is not yet enabled for Scan-to-Find.");
+        if (response.status === 429) throw new Error("You have reached the scan limit. Please wait a minute and try again.");
+        if (response.status === 422) throw new Error("We could not read that image. Try a clearer photo in JPG or PNG format.");
+        throw new Error(payload.hint || "The scan could not be completed. Please try again.");
+      }
+
+      setMatches(Array.isArray(payload.matches) ? payload.matches : []);
+      setNote(payload.note || "");
+      setHasSearched(true);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Photo comparison failed.");
+      setError(cause instanceof Error ? cause.message : "Something went wrong while matching the image.");
     } finally {
-      setLoading(false);
+      setMatching(false);
     }
   }
-
-  function resetTest() {
-    stopCamera();
-    if (testImage?.startsWith("blob:")) URL.revokeObjectURL(testImage);
-    setTestImage(null);
-    setResult(null);
-    setError("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
-  if (!userChecked) return <main className="min-h-screen bg-[#0c0c0b] text-[#ebe8e1]"><Navbar /><div className="flex min-h-[65vh] items-center justify-center gap-3 text-sm text-[#918d84]"><Loader2 size={18} className="animate-spin" /> Loading Scan to Find...</div></main>;
-  if (!userSignedIn) return (
-    <main className="min-h-screen bg-[#0c0c0b] text-[#ebe8e1]">
-      <Navbar />
-      <section className="mx-auto max-w-2xl px-6 py-20 text-center">
-        <ScanFace size={36} className="mx-auto text-[#cdbd96]" />
-        <h1 className="mt-5 text-3xl font-semibold">Face Match Lab</h1>
-        <p className="mt-3 text-sm leading-7 text-[#918d84]">Sign in to test the personal photo-comparison prototype.</p>
-        <a href="/auth" className="pf-button-primary mt-7">Sign in</a>
-      </section>
-    </main>
-  );
 
   return (
-    <main className="min-h-screen bg-[#0c0c0b] text-[#ebe8e1]">
+    <main className="min-h-screen bg-[#0e0e0d] text-[#ebe8e1]">
       <Navbar />
-      <section className="mx-auto max-w-4xl px-5 py-9 sm:px-6 sm:py-12">
-        <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-[#cdbd96]">PeopleFind · Experimental tool</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Face Match Lab</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-[#918d84]">Compare two photos you control. This version tests one reference photo against one test photo; it does not search the student directory or reveal anyone’s profile.</p>
-        <div className="mt-7 flex items-center gap-2 rounded-xl border border-white/[0.08] bg-[#141413] px-4 py-3 text-sm">
-          <span className={`h-2 w-2 rounded-full ${modelsReady ? "bg-emerald-400" : "bg-[#cdbd96]"}`} />
-          {modelsReady ? "Face models ready" : "Loading face models…"}
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 lg:pt-12">
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#a7a195]">PeopleFind / Scan-to-Find</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Find a person from a photo</h1>
+          <p className="mt-4 max-w-xl text-sm leading-6 text-[#a7a195] sm:text-base">
+            Upload or capture a reference image. PeopleFind compares its visual appearance with indexed directory photos and shows the closest results it can find.
+          </p>
         </div>
-        {error && <div role="alert" className="mt-5 flex items-start gap-3 rounded-xl border border-[#d98282]/20 bg-[#d98282]/[0.06] p-4 text-sm leading-6 text-[#d7aaa7]"><X size={18} className="mt-0.5 shrink-0" /><span>{error}</span></div>}
-        <div className="mt-5 grid gap-5 md:grid-cols-2">
-          <section className="rounded-2xl border border-white/[0.08] bg-[#141413] p-5 sm:p-6">
-            <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#cdbd96]/10 text-[#cdbd96]"><ShieldCheck size={20} /></div><div><h2 className="text-sm font-semibold">Reference photo</h2><p className="mt-1 text-xs text-[#918d84]">A photo you control</p></div></div>
-            <label htmlFor="reference-url" className="mt-5 block text-sm font-medium">Supabase image URL</label>
-            <input id="reference-url" type="url" value={referenceUrl} onChange={(event) => { setReferenceUrl(event.target.value); setResult(null); }} placeholder="Paste a public or valid signed URL" className="mt-2 w-full rounded-xl border border-white/[0.1] bg-[#0b0b0a] px-3 py-3 text-sm outline-none focus:border-[#cdbd96]/60" />
-            <p className="mt-2 text-xs leading-5 text-[#777267]">Private Supabase files need an unexpired signed URL and browser access. Never paste a service-role key.</p>
-          </section>
-          <section className="rounded-2xl border border-white/[0.08] bg-[#141413] p-5 sm:p-6">
-            <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#cdbd96]/10 text-[#cdbd96]"><ScanFace size={20} /></div><div><h2 className="text-sm font-semibold">Test photo</h2><p className="mt-1 text-xs text-[#918d84]">Capture or upload another image</p></div></div>
-            <div className="mt-5 flex min-h-52 items-center justify-center overflow-hidden rounded-xl border border-white/[0.08] bg-[#090909]">
-              {cameraOpen ? <video ref={videoRef} autoPlay muted playsInline className="max-h-80 w-full object-contain" /> : testImage ? <img src={testImage} alt="Selected test photo" className="max-h-80 w-full object-contain" /> : <div className="p-6 text-center text-sm text-[#777267]"><ImagePlus size={28} className="mx-auto mb-3" />No test photo selected</div>}
+
+        <div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+          <section className="rounded-2xl border border-white/[0.09] bg-[#151514] p-4 sm:p-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-[#20201e] text-[#d2cabb]">
+                <ScanSearch size={19} />
+              </div>
+              <div>
+                <h2 className="font-semibold">Reference image</h2>
+                <p className="mt-1 text-xs text-[#858178]">JPG, PNG, WEBP · Maximum 8 MB</p>
+              </div>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <button type="button" onClick={cameraOpen ? capturePhoto : openCamera} disabled={cameraLoading} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#cdbd96] px-3 py-3 text-sm font-semibold text-[#171612] disabled:opacity-50">{cameraLoading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}{cameraOpen ? "Capture" : cameraLoading ? "Opening…" : "Use camera"}</button>
-              <button type="button" onClick={() => fileInputRef.current?.click()} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.1] px-3 py-3 text-sm hover:bg-white/[0.04]"><ImagePlus size={16} /> Upload</button>
+
+            <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleUpload} />
+
+            {cameraOpen ? (
+              <div className="mt-5 overflow-hidden rounded-xl border border-white/[0.08] bg-black">
+                <video ref={videoRef} autoPlay playsInline muted className="max-h-[420px] min-h-48 w-full object-contain" />
+                <div className="flex flex-wrap gap-2 border-t border-white/[0.08] p-3">
+                  <button type="button" onClick={() => void capturePhoto()} className="inline-flex items-center gap-2 rounded-lg bg-[#e3ded2] px-4 py-2.5 text-sm font-semibold text-[#171715] hover:bg-white">
+                    <Camera size={16} /> Capture photo
+                  </button>
+                  <button type="button" onClick={stopCamera} className="inline-flex items-center gap-2 rounded-lg border border-white/[0.12] px-4 py-2.5 text-sm text-[#c8c3b9] hover:bg-white/[0.05]">
+                    <X size={16} /> Cancel
+                  </button>
+                </div>
+              </div>
+            ) : previewUrl ? (
+              <div className="mt-5 overflow-hidden rounded-xl border border-white/[0.08] bg-[#0b0b0a]">
+                <img src={previewUrl} alt="Selected reference" className="max-h-[420px] min-h-48 w-full object-contain" />
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.08] p-3">
+                  <p className="max-w-[70%] truncate text-xs text-[#a7a195]">{selectedFile?.name}</p>
+                  <button type="button" onClick={() => { setSelectedFile(null); setPreviewUrl(""); resetResults(); }} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-[#c8c3b9] hover:bg-white/[0.06]">
+                    <X size={14} /> Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-5 flex min-h-64 w-full flex-col items-center justify-center rounded-xl border border-dashed border-white/[0.16] bg-[#10100f] px-5 text-center transition hover:border-white/[0.28] hover:bg-[#181817]">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.09] bg-[#20201e] text-[#c8c3b9]"><ImagePlus size={22} /></span>
+                <span className="mt-4 text-sm font-semibold">Choose a reference image</span>
+                <span className="mt-2 max-w-xs text-xs leading-5 text-[#858178]">Use a clear, well-lit image for the best chance of a useful visual match.</span>
+              </button>
+            )}
+
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button type="button" disabled={cameraBusy || matching} onClick={() => void openCamera()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.12] px-4 py-3 text-sm font-medium text-[#d8d2c7] transition hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-50">
+                {cameraBusy ? <LoaderCircle className="animate-spin" size={17} /> : <Camera size={17} />}
+                {cameraBusy ? "Opening camera…" : "Use camera"}
+              </button>
+              <button type="button" disabled={!selectedFile || matching} onClick={() => void runMatch()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#e3ded2] px-4 py-3 text-sm font-semibold text-[#171715] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-45">
+                {matching ? <LoaderCircle className="animate-spin" size={17} /> : <ScanSearch size={17} />}
+                {matching ? "Comparing image…" : "Find matches"}
+              </button>
             </div>
-            {cameraOpen && <button type="button" onClick={stopCamera} className="mt-3 w-full rounded-xl border border-white/[0.08] px-3 py-2 text-xs text-[#918d84]">Close camera</button>}
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
+
+            {error && <div role="alert" className="mt-4 rounded-xl border border-[#c77b6b]/25 bg-[#c77b6b]/[0.08] px-4 py-3 text-sm leading-5 text-[#e2a99d]">{error}</div>}
+          </section>
+
+          <section className="rounded-2xl border border-white/[0.09] bg-[#151514] p-4 sm:p-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-[#20201e] text-[#d2cabb]">
+                <CheckCircle2 size={19} />
+              </div>
+              <div>
+                <h2 className="font-semibold">Closest results</h2>
+                <p className="mt-1 text-xs text-[#858178]">Visual similarity, not proof of identity</p>
+              </div>
+            </div>
+
+            {matching ? (
+              <div className="flex min-h-64 flex-col items-center justify-center text-center">
+                <LoaderCircle className="animate-spin text-[#c8c3b9]" size={28} />
+                <p className="mt-4 text-sm font-medium">Comparing the image</p>
+                <p className="mt-2 max-w-xs text-xs leading-5 text-[#858178]">The first scan may take longer while the vision model loads.</p>
+              </div>
+            ) : matches.length > 0 ? (
+              <div className="mt-5 space-y-3">
+                {matches.map((match, index) => (
+                  <Link key={match.id} href={match.profileUrl} className="flex gap-3 rounded-xl border border-white/[0.08] bg-[#10100f] p-3 transition hover:border-white/[0.18] hover:bg-[#191918]">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.08] bg-[#20201e] text-xs text-[#858178]">
+                      {match.photoUrl ? <img src={match.photoUrl} alt="" className="h-full w-full object-cover" /> : <ImagePlus size={20} />}
+                    </div>
+                    <div className="min-w-0 flex-1 py-0.5">
+                      <p className="text-[11px] uppercase tracking-[0.15em] text-[#858178]">Possible result {index + 1}</p>
+                      <p className="mt-1 truncate text-sm font-semibold text-[#ebe8e1]">{match.name}</p>
+                      <p className="mt-1 truncate text-xs text-[#a7a195]">{match.faculty || "Faculty not listed"}</p>
+                    </div>
+                    <div className="self-center text-[#858178]"><CheckCircle2 size={16} /></div>
+                  </Link>
+                ))}
+                {note && <p className="rounded-lg bg-[#10100f] p-3 text-xs leading-5 text-[#a7a195]">{note}</p>}
+              </div>
+            ) : hasSearched ? (
+              <div className="mt-5 flex min-h-64 flex-col items-center justify-center rounded-xl border border-white/[0.07] bg-[#10100f] px-5 text-center">
+                <ScanSearch size={26} className="text-[#858178]" />
+                <p className="mt-4 text-sm font-semibold">No close matches found</p>
+                <p className="mt-2 max-w-sm text-xs leading-5 text-[#858178]">{note || "Try a clearer image or a different angle."}</p>
+                <button type="button" onClick={() => { setHasSearched(false); setMatches([]); setNote(""); }} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-white/[0.12] px-3 py-2 text-xs text-[#d8d2c7] hover:bg-white/[0.05]"><RefreshCw size={14} /> Try again</button>
+              </div>
+            ) : (
+              <div className="mt-5 flex min-h-64 flex-col items-center justify-center rounded-xl border border-white/[0.07] bg-[#10100f] px-5 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-[#20201e] text-[#c8c3b9]"><ScanSearch size={22} /></div>
+                <p className="mt-4 text-sm font-semibold">Your matches will appear here</p>
+                <p className="mt-2 max-w-sm text-xs leading-5 text-[#858178]">Choose an image and select Find matches. Results depend on the quality and coverage of the indexed directory photos.</p>
+              </div>
+            )}
+
+            <div className="mt-5 flex items-start gap-3 rounded-xl border border-white/[0.07] bg-[#10100f] p-3.5">
+              <ShieldCheck size={17} className="mt-0.5 shrink-0 text-[#a7a195]" />
+              <p className="text-xs leading-5 text-[#858178]">Scan results are suggestions based on image similarity. Always open the directory profile and verify details independently. This feature does not identify someone with certainty.</p>
+            </div>
           </section>
         </div>
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <button type="button" disabled={!modelsReady || !testImage || !referenceUrl.trim() || loading} onClick={comparePhotos} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#ebe8e1] px-5 py-3 text-sm font-semibold text-[#0c0c0b] disabled:cursor-not-allowed disabled:opacity-40">{loading ? <Loader2 size={17} className="animate-spin" /> : <ScanFace size={17} />}{loading ? "Comparing photos…" : "Compare photos"}</button>
-          <button type="button" onClick={resetTest} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/[0.1] px-5 py-3 text-sm"><RotateCcw size={16} /> Reset</button>
-        </div>
-        {result && <section className="mt-5 rounded-2xl border border-white/[0.1] bg-[#141413] p-5 sm:p-6"><div className="flex items-start gap-3"><CheckCircle2 size={22} className="mt-0.5 text-[#cdbd96]" /><div><p className="text-xs uppercase tracking-[0.16em] text-[#918d84]">Experimental result</p><h2 className="mt-2 text-xl font-semibold">{result.possibleMatch ? "Possible match" : "No match at this threshold"}</h2><p className="mt-2 text-sm text-[#b9b4a9]">Descriptor distance: <span className="font-mono">{result.distance.toFixed(4)}</span></p><p className="mt-3 text-xs leading-6 text-[#777267]">The 0.6 threshold is only a starting point, not an identity confidence score. Lighting, pose, image quality, and the model can cause errors. Do not use this result to make decisions about another person.</p></div></div></section>}
-        <p className="mt-5 text-xs leading-6 text-[#777267]">This page calculates descriptors in your browser and does not save images or descriptors to Supabase. The next stage requires an explicit opt-in design and accuracy testing before any student-directory integration.</p>
-      </section>
+      </div>
     </main>
   );
 }
