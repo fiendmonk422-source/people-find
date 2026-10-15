@@ -98,7 +98,7 @@ function mapCsv(text: string): { rows: ImportRow[]; headers: string[]; unknown: 
   return { rows, headers: rawHeaders.filter((_, i) => Boolean(mapped[i])), unknown };
 }
 
-export default function ImportPeople() {
+export default function ImportPeople({ onImported }: { onImported?: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<ImportRow[]>([]);
@@ -134,6 +134,7 @@ export default function ImportPeople() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message || "CSV import failed.");
       setResult(payload.result as ImportResult);
+      onImported?.();
       setRows([]); setHeaders([]); setUnknown([]);
       setFileName("");
       if (inputRef.current) inputRef.current.value = "";
