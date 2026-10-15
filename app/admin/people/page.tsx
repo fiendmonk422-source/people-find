@@ -138,7 +138,7 @@ export default function AdminPeoplePage() {
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Manage directory</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[#918d84]">Only authorized administrators can correct directory records. Each successful save creates an audit event.</p>
 
-        <ImportPeople />
+        <ImportPeople onImported={() => void loadPeople(query)} />
 
         <form onSubmit={search} className="mt-8 flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-[#141413] p-4 sm:flex-row">
           <label className="relative flex-1">
