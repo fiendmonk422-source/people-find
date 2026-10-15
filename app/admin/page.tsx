@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  Activity, ArrowUpRight, ClipboardList, ShieldCheck, Users,
+  Activity, ArrowUpRight, BellRing, ClipboardList, ShieldCheck, Users,
 } from "lucide-react";
 import { getAdminContext } from "../../src/lib/admin/server";
 import AdminSetupNotice from "./AdminSetupNotice";
@@ -95,6 +95,7 @@ export default async function AdminDashboardPage() {
           <div className="space-y-3">
             <AdminLink href="/admin/people" title="Manage directory" description="Search records and correct approved directory fields." icon={<Users size={19} />} />
             <AdminLink href="/admin/requests" title="Review requests" description="Monitor community requests and update their status." icon={<ClipboardList size={19} />} />
+            <AdminLink href="/admin/announcements" title="Events & notices" description="Publish announcements, manage events, pin notices and control pop-ups." icon={<BellRing size={19} />} />
             <AdminLink href="/admin/activity" title="Activity reports" description="Search the audit log and export a CSV report." icon={<Activity size={19} />} />
           </div>
         </section>
