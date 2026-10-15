@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "./components/Navbar";
+import AnnouncementPopup from "./components/AnnouncementPopup";
 
 export const metadata: Metadata = {
   title: "PeopleFind",
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <Navbar />
+        <AnnouncementPopup />
         {children}
       </body>
     </html>
