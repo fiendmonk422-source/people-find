@@ -25,7 +25,7 @@ export default async function RootLayout({
     .or("expires_at.is.null,expires_at.gt." + new Date().toISOString())
     .order("is_pinned", { ascending: false })
     .order("published_at", { ascending: false })
-    .limit(20);
+    .limit(50);
 
   return (
     <html lang="en">
