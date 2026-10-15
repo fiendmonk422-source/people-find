@@ -229,6 +229,12 @@ export default function SearchPage() {
       }
 
       setResults((data ?? []) as Person[]);
+      void supabase.from("student_activity_log").insert({
+        user_id: user.id,
+        event_type: "directory_search",
+        page_path: "/search",
+        metadata: { result_count: (data ?? []).length, filter_count: Object.values(clean).filter(Boolean).length },
+      });
     } catch (err) {
       setResults([]);
 

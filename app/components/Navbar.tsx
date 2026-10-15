@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  Activity,
   Compass,
+  BellRing,
+  ShieldCheck,
   LogIn,
   LogOut,
   Menu,
@@ -27,6 +28,7 @@ type User = {
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
+  const [adminUserId, setAdminUserId] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -51,12 +53,47 @@ export default function Navbar() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const userId = user?.id;
+    if (!userId) {
+      return () => {
+        active = false;
+      };
+    }
+
+    void supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle()
+      .then(
+        ({ data, error }) => {
+          if (active) {
+            setAdminUserId(
+              !error && (data?.role === "admin" || data?.role === "super_admin")
+                ? userId
+                : null
+            );
+          }
+        },
+        () => {
+          if (active) setAdminUserId(null);
+        }
+      );
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
+
   async function logout() {
     await supabase.auth.signOut();
     setMobileOpen(false);
     window.location.href = "/";
   }
 
+  const isAdmin = Boolean(user?.id && adminUserId === user.id);
   const nickname = user?.user_metadata?.nickname || "Account";
 
   const closeMobile = () => {
@@ -110,9 +147,13 @@ export default function Navbar() {
               Requests
             </NavLink>
 
-            {user && (
-              <NavLink href="/activity" icon={<Activity size={15} />}>
-                Activity
+            <NavLink href="/announcements" icon={<BellRing size={15} />}>
+              Updates
+            </NavLink>
+
+            {isAdmin && (
+              <NavLink href="/admin" icon={<ShieldCheck size={15} />}>
+                Admin
               </NavLink>
             )}
           </nav>
@@ -201,13 +242,21 @@ export default function Navbar() {
                   Requests
                 </MobileNavLink>
 
-                {user && (
+                <MobileNavLink
+                  href="/announcements"
+                  icon={<BellRing size={17} />}
+                  onClick={closeMobile}
+                >
+                  Events & notices
+                </MobileNavLink>
+
+                {isAdmin && (
                   <MobileNavLink
-                    href="/activity"
-                    icon={<Activity size={17} />}
+                    href="/admin"
+                    icon={<ShieldCheck size={17} />}
                     onClick={closeMobile}
                   >
-                    Activity
+                    Admin
                   </MobileNavLink>
                 )}
               </div>
