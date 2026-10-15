@@ -61,6 +61,16 @@ export default async function ProfilePage({
     );
   }
 
+  const { data: { user: viewer } } = await supabase.auth.getUser();
+  if (viewer) {
+    void supabase.from("student_activity_log").insert({
+      user_id: viewer.id,
+      event_type: "profile_view",
+      page_path: "/people/profile",
+      metadata: {},
+    });
+  }
+
   const displayName =
     person.name ||
     [person.first_name, person.middle_name, person.last_name]
