@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  Activity, ArrowUpRight, BellRing, ClipboardList, ShieldCheck, Users,
+  Activity, ArrowUpRight, BellRing, ClipboardList, FileSpreadsheet, ShieldCheck, Users,
 } from "lucide-react";
 import { getAdminContext } from "../../src/lib/admin/server";
 import AdminSetupNotice from "./AdminSetupNotice";
@@ -96,6 +96,7 @@ export default async function AdminDashboardPage() {
 
           <div className="space-y-3">
             <AdminLink href="/admin/people" title="Manage directory" description="Search records and correct approved directory fields." icon={<Users size={19} />} />
+            <AdminLink href="/admin/people#csv-import" title="Import CSV" description="Upload a student spreadsheet, preview rows and import directory records in bulk." icon={<FileSpreadsheet size={19} />} />
             <AdminLink href="/admin/requests" title="Review requests" description="Monitor community requests and update their status." icon={<ClipboardList size={19} />} />
             <AdminLink href="/admin/announcements" title="Events & notices" description="Publish announcements, manage events, pin notices and control pop-ups." icon={<BellRing size={19} />} />
             <AdminLink href="/admin/students" title="Student activity" description="Review signed-in usage patterns and export student activity as CSV." icon={<Users size={19} />} />
