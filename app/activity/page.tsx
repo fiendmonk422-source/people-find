@@ -122,7 +122,6 @@ export default function MyActivityPage() {
   }, []);
 
   const requestById = useMemo(() => new Map(requests.map((item) => [item.id, item])), [requests]);
-  const responseById = useMemo(() => new Map([...myResponses, ...responsesToMyRequests].map((item) => [item.id, item])), [myResponses, responsesToMyRequests]);
 
   const timeline = useMemo(() => {
     const items: TimelineItem[] = [
