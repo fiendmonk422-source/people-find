@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { Check, Search, Save, UserRound, X } from "lucide-react";
+import ImportPeople from "./ImportPeople";
 
 type Person = {
   id: string;
@@ -136,6 +137,8 @@ export default function AdminPeoplePage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#cdbd96]">PeopleFind / Administration</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Manage directory</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[#918d84]">Only authorized administrators can correct directory records. Each successful save creates an audit event.</p>
+
+        <ImportPeople />
 
         <form onSubmit={search} className="mt-8 flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-[#141413] p-4 sm:flex-row">
           <label className="relative flex-1">
