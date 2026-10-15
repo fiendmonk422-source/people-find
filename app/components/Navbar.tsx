@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Compass,
+  Activity,
   BellRing,
   ShieldCheck,
   LogIn,
@@ -147,6 +148,12 @@ export default function Navbar() {
               Requests
             </NavLink>
 
+            {user && (
+              <NavLink href="/activity" icon={<Activity size={15} />}>
+                My Activity
+              </NavLink>
+            )}
+
             <NavLink href="/announcements" icon={<BellRing size={15} />}>
               Updates
             </NavLink>
@@ -241,6 +248,16 @@ export default function Navbar() {
                 >
                   Requests
                 </MobileNavLink>
+
+                {user && (
+                  <MobileNavLink
+                    href="/activity"
+                    icon={<Activity size={17} />}
+                    onClick={closeMobile}
+                  >
+                    My Activity
+                  </MobileNavLink>
+                )}
 
                 <MobileNavLink
                   href="/announcements"
