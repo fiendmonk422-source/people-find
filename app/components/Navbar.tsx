@@ -66,14 +66,20 @@ export default function Navbar() {
       .select("role")
       .eq("user_id", userId)
       .maybeSingle()
-      .then(({ data, error }) => {
-        if (active) {
-          setAdminUserId(!error && (data?.role === "admin" || data?.role === "super_admin") ? userId : null);
+      .then(
+        ({ data, error }) => {
+          if (active) {
+            setAdminUserId(
+              !error && (data?.role === "admin" || data?.role === "super_admin")
+                ? userId
+                : null
+            );
+          }
+        },
+        () => {
+          if (active) setAdminUserId(null);
         }
-      })
-      .catch(() => {
-        if (active) setAdminUserId(null);
-      });
+      );
 
     return () => {
       active = false;
