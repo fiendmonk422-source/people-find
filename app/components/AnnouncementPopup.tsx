@@ -34,7 +34,6 @@ export default function AnnouncementPopup({ items }: { items: Announcement[] }) 
   }, []);
 
   useEffect(() => {
-    if (dismissedIds.length < 0) return;
     const next = items.find((item) => item.show_popup && !dismissedIds.includes(item.id));
     if (!next) { setPopup(null); return; }
     const timer = window.setTimeout(() => setPopup(next), 650);
