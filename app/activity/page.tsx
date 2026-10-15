@@ -209,6 +209,38 @@ export default function MyActivityPage() {
             </div>
 
             <section className="mt-8 overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111110]">
+              <div className="flex flex-col gap-2 border-b border-white/[0.06] p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <div>
+                  <h2 className="text-lg font-semibold">My requests</h2>
+                  <p className="mt-1 text-xs text-[#77736d]">Check each request’s status and how many replies it has received.</p>
+                </div>
+                <Link href="/requests" className="inline-flex items-center gap-2 text-sm text-[#d7c69f] hover:text-[#ebe8e1]">View community requests <ArrowUpRight size={15} /></Link>
+              </div>
+              {requests.length === 0 ? (
+                <div className="px-6 py-8 text-sm text-[#77736d]">You haven’t posted a request yet.</div>
+              ) : (
+                <div className="divide-y divide-white/[0.05]">
+                  {requests.map((request) => {
+                    const replyCount = responsesToMyRequests.filter((reply) => reply.request_id === request.id).length;
+                    return (
+                      <div key={request.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-[#e5e1d9]">{request.target_name ? `Looking for ${request.target_name}` : "People-finding request"}</p>
+                          <p className="mt-1 line-clamp-2 text-sm text-[#918d84]">{request.clues || [request.school, request.faculty, request.department, request.level].filter(Boolean).join(" · ") || "No extra details added"}</p>
+                          <p className="mt-2 text-xs text-[#77736d]">Posted {dateLabel(request.created_at)}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-3">
+                          <span className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-xs text-[#b8b4ac]">{request.status || "Open"}</span>
+                          <span className="text-xs text-[#cdbd96]">{replyCount} {replyCount === 1 ? "reply" : "replies"}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            <section className="mt-8 overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111110]">
               <div className="flex flex-col gap-4 border-b border-white/[0.06] p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <div>
                   <h2 className="text-lg font-semibold">Recent activity</h2>
