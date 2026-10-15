@@ -3,14 +3,15 @@ import { redirect } from "next/navigation";
 import {
   Activity, ArrowUpRight, ClipboardList, ShieldCheck, Users,
 } from "lucide-react";
-import { getAdminContext, adminPageSetupNotice } from "../../src/lib/admin/server";
+import { getAdminContext } from "../../src/lib/admin/server";
+import AdminSetupNotice from "./AdminSetupNotice";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
   const access = await getAdminContext();
   if (!access.user) redirect("/auth");
-  if (access.roleError) return adminPageSetupNotice();
+  if (access.roleError) return <AdminSetupNotice />;
   if (!access.isAdmin) redirect("/");
 
   const [people, requests, responses, feedback, activityCount, recent] = await Promise.all([

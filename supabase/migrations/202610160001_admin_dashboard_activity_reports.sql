@@ -1,5 +1,10 @@
 begin;
 
+-- Cohort/admission labels may be ranges such as 2023/2024, so preserve them as text.
+alter table public.people
+  alter column admission_year type text using admission_year::text,
+  alter column graduation_year type text using graduation_year::text;
+
 -- Administrator assignments are managed only through the Supabase Dashboard/SQL Editor.
 -- Authenticated users can read their own role, but cannot grant or change roles themselves.
 create table if not exists public.user_roles (
@@ -162,8 +167,8 @@ begin
     state = case when p_changes ? 'state' then nullif(p_changes->>'state', '') else p.state end,
     country = case when p_changes ? 'country' then nullif(p_changes->>'country', '') else p.country end,
     nationality = case when p_changes ? 'nationality' then nullif(p_changes->>'nationality', '') else p.nationality end,
-    admission_year = case when p_changes ? 'admission_year' then nullif(p_changes->>'admission_year', '')::integer else p.admission_year end,
-    graduation_year = case when p_changes ? 'graduation_year' then nullif(p_changes->>'graduation_year', '')::integer else p.graduation_year end,
+    admission_year = case when p_changes ? 'admission_year' then nullif(p_changes->>'admission_year', '') else p.admission_year end,
+    graduation_year = case when p_changes ? 'graduation_year' then nullif(p_changes->>'graduation_year', '') else p.graduation_year end,
     status = case when p_changes ? 'status' then nullif(p_changes->>'status', '') else p.status end,
     photo_url = case when p_changes ? 'photo_url' then nullif(p_changes->>'photo_url', '') else p.photo_url end,
     lga = case when p_changes ? 'lga' then nullif(p_changes->>'lga', '') else p.lga end,

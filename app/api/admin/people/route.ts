@@ -47,10 +47,11 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "people_query_failed", message: failed.error.message }, { status: 500 });
   }
 
-  const byId = new Map<string, (typeof results)[number]["data"] extends (infer T)[] | null ? T : never>();
+  const byId = new Map<string, Record<string, unknown>>();
   for (const result of results) {
     for (const row of result.data ?? []) {
-      byId.set(row.id, row as never);
+      const person = row as unknown as { id: string };
+      byId.set(person.id, row as unknown as Record<string, unknown>);
     }
   }
 
@@ -81,7 +82,7 @@ export async function PATCH(request: NextRequest) {
   const textFields = new Set([
     "name", "first_name", "middle_name", "last_name", "nickname",
     "school", "faculty", "department", "level", "class_name", "matric_number",
-    "hostel", "room", "phone", "email", "address", "gender", "state",
+    "admission_year", "graduation_year", "hostel", "room", "phone", "email", "address", "gender", "state",
     "country", "nationality", "status", "photo_url", "lga", "level_override",
     "profile_visibility",
   ]);
@@ -115,19 +116,6 @@ export async function PATCH(request: NextRequest) {
         changes[key] = value;
       } else {
         return Response.json({ error: "invalid_date", field: key }, { status: 400 });
-      }
-      continue;
-    }
-
-    if (key === "admission_year" || key === "graduation_year") {
-      if (value === null || value === "") {
-        changes[key] = null;
-      } else {
-        const year = typeof value === "number" ? value : Number(value);
-        if (!Number.isInteger(year) || year < 1900 || year > 2200) {
-          return Response.json({ error: "invalid_year", field: key }, { status: 400 });
-        }
-        changes[key] = year;
       }
       continue;
     }

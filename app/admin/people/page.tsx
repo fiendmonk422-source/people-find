@@ -105,8 +105,9 @@ export default function AdminPeoplePage() {
       if (!response.ok) throw new Error(payload.message || payload.error || "The record could not be updated.");
       setNotice("Directory record saved. The change was added to the admin activity log.");
       await loadPeople(query);
-      const fresh = people.find((person) => person.id === selected.id);
-      if (fresh) selectPerson(fresh);
+      setSelected((current) => current
+        ? ({ ...current, ...changes, ...(payload.person ?? {}) } as Person)
+        : current);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The record could not be updated.");
     } finally {
