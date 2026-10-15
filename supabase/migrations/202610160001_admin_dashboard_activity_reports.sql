@@ -67,6 +67,7 @@ revoke update on table public.requests from PUBLIC, anon, authenticated;
 
 -- Replace permissive write policies with owner-bound insert rules.
 drop policy if exists "Authenticated users can create requests" on public.requests;
+drop policy if exists requests_insert_own on public.requests;
 create policy requests_insert_own
   on public.requests
   for insert
@@ -76,6 +77,7 @@ create policy requests_insert_own
 drop policy if exists "Authenticated users can update requests" on public.requests;
 
 drop policy if exists "Authenticated users can create responses" on public.request_responses;
+drop policy if exists request_responses_insert_own on public.request_responses;
 create policy request_responses_insert_own
   on public.request_responses
   for insert
@@ -85,6 +87,7 @@ create policy request_responses_insert_own
 -- Permissive policies combine with OR, so remove the old unrestricted feedback insert.
 drop policy if exists "Authenticated users can create feedback" on public.response_feedback;
 drop policy if exists "Authenticated users can insert response feedback" on public.response_feedback;
+drop policy if exists response_feedback_insert_own on public.response_feedback;
 create policy response_feedback_insert_own
   on public.response_feedback
   for insert

@@ -10,6 +10,7 @@ This feature is intentionally developed on its own branch and must be tested bef
 - Request status review (Open, Resolved, Closed), with changes recorded in the admin activity log.
 - A searchable activity report with CSV export.
 - Safer ownership checks for request creation, response creation and feedback creation.
+- Converts admission_year and graduation_year to text so values such as 2023/2024 can be stored without integer conversion errors.
 
 ## Required database setup
 

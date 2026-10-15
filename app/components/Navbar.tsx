@@ -27,7 +27,7 @@ type User = {
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminUserId, setAdminUserId] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -54,9 +54,8 @@ export default function Navbar() {
 
   useEffect(() => {
     let active = true;
-    setIsAdmin(false);
-
-    if (!user?.id) {
+    const userId = user?.id;
+    if (!userId) {
       return () => {
         active = false;
       };
@@ -65,15 +64,15 @@ export default function Navbar() {
     void supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .maybeSingle()
       .then(({ data, error }) => {
         if (active) {
-          setIsAdmin(!error && (data?.role === "admin" || data?.role === "super_admin"));
+          setAdminUserId(!error && (data?.role === "admin" || data?.role === "super_admin") ? userId : null);
         }
       })
       .catch(() => {
-        if (active) setIsAdmin(false);
+        if (active) setAdminUserId(null);
       });
 
     return () => {
@@ -87,6 +86,7 @@ export default function Navbar() {
     window.location.href = "/";
   }
 
+  const isAdmin = Boolean(user?.id && adminUserId === user.id);
   const nickname = user?.user_metadata?.nickname || "Account";
 
   const closeMobile = () => {

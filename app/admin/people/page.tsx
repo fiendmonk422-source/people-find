@@ -84,16 +84,31 @@ export default function AdminPeoplePage() {
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selected || saving) return;
+
+    const changes: Record<string, string | boolean | null> = {};
+    const normalize = (value: unknown) => {
+      if (value === null || value === undefined) return null;
+      const text = String(value).trim();
+      return text ? text : null;
+    };
+
+    for (const [key] of fields) {
+      const value = form[key];
+      const cleaned = typeof value === "string" && !value.trim() ? null : value as string | null;
+      if (normalize(selected[key]) !== normalize(cleaned)) changes[key] = cleaned;
+    }
+    const verified = Boolean(form.profile_verified);
+    if (Boolean(selected.profile_verified) !== verified) changes.profile_verified = verified;
+
+    if (Object.keys(changes).length === 0) {
+      setError("");
+      setNotice("No changes detected. The directory record was left untouched.");
+      return;
+    }
+
     setSaving(true);
     setError("");
     setNotice("");
-
-    const changes: Record<string, string | boolean | null> = {};
-    for (const [key] of fields) {
-      const value = form[key];
-      changes[key] = typeof value === "string" && !value.trim() ? null : value as string | null;
-    }
-    changes.profile_verified = Boolean(form.profile_verified);
 
     try {
       const response = await fetch("/api/admin/people", {
