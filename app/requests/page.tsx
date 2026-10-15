@@ -166,6 +166,7 @@ export default function RequestsPage() {
         });
 
       if (insertError) throw insertError;
+      await supabase.from("student_activity_log").insert({ user_id: user.id, event_type: "request_created", page_path: "/requests", metadata: {} });
 
       setRequestForm({
         targetName: "",
@@ -218,6 +219,7 @@ export default function RequestsPage() {
         });
 
       if (insertError) throw insertError;
+      await supabase.from("student_activity_log").insert({ user_id: user.id, event_type: "response_created", page_path: "/requests", metadata: {} });
 
       setResponseText("");
       setRespondingTo(null);
@@ -283,6 +285,7 @@ export default function RequestsPage() {
           });
 
         if (insertError) throw insertError;
+        await supabase.from("student_activity_log").insert({ user_id: user.id, event_type: "reaction_created", page_path: "/requests", metadata: {} });
       }
 
       await loadRequests();
