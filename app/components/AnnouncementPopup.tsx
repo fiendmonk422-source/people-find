@@ -22,12 +22,10 @@ type Announcement = {
 export default function AnnouncementPopup() {
   const [items, setItems] = useState<Announcement[]>([]);
   const [popup, setPopup] = useState<Announcement | null>(null);
-  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     let alive = true;
     const dismissedId = typeof window !== "undefined" ? window.sessionStorage.getItem("peoplefind-dismissed-announcement") : null;
-    setDismissed(Boolean(dismissedId));
 
     void supabase
       .from("site_announcements")
@@ -51,7 +49,6 @@ export default function AnnouncementPopup() {
   function closePopup() {
     if (popup) window.sessionStorage.setItem("peoplefind-dismissed-announcement", popup.id);
     setPopup(null);
-    setDismissed(true);
   }
 
   const pinned = items.find((item) => item.is_pinned);
@@ -67,7 +64,7 @@ export default function AnnouncementPopup() {
           </div>
         </div>
       )}
-      {popup && !dismissed && (
+      {popup && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="announcement-title">
           <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-[#141413] p-6 shadow-2xl sm:p-8">
             <button onClick={closePopup} type="button" aria-label="Dismiss notice" className="absolute right-4 top-4 rounded-lg p-2 text-[#918d84] hover:bg-white/5 hover:text-white"><X size={18} /></button>
