@@ -14,19 +14,20 @@ export default async function AdminDashboardPage() {
   if (access.roleError) return <AdminSetupNotice />;
   if (!access.isAdmin) redirect("/");
 
-  const [people, requests, responses, feedback, activityCount, recent] = await Promise.all([
+  const [people, requests, responses, feedback, activityCount, studentActivityCount, recent] = await Promise.all([
     access.supabase.from("people").select("id", { count: "exact", head: true }),
     access.supabase.from("requests").select("id", { count: "exact", head: true }),
     access.supabase.from("request_responses").select("id", { count: "exact", head: true }),
     access.supabase.from("response_feedback").select("id", { count: "exact", head: true }),
     access.supabase.from("admin_activity_log").select("id", { count: "exact", head: true }),
+    access.supabase.from("student_activity_log").select("id", { count: "exact", head: true }),
     access.supabase.from("admin_activity_log")
       .select("id, actor_email, action, target_type, target_id, summary, created_at")
       .order("created_at", { ascending: false })
       .limit(6),
   ]);
 
-  const countError = people.error || requests.error || responses.error || feedback.error || activityCount.error;
+  const countError = people.error || requests.error || responses.error || feedback.error || activityCount.error || studentActivityCount.error;
   const recentError = recent.error;
 
   return (
@@ -49,12 +50,13 @@ export default async function AdminDashboardPage() {
           </div>
         )}
 
-        <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
           <Metric label="Directory records" value={people.count} icon={<Users size={18} />} />
           <Metric label="Requests" value={requests.count} icon={<ClipboardList size={18} />} />
           <Metric label="Responses" value={responses.count} icon={<Activity size={18} />} />
           <Metric label="Reactions" value={feedback.count} icon={<ShieldCheck size={18} />} />
           <Metric label="Admin events" value={activityCount.count} icon={<Activity size={18} />} />
+          <Metric label="Student activity" value={studentActivityCount.count} icon={<Users size={18} />} />
         </section>
 
         <section className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
@@ -96,7 +98,8 @@ export default async function AdminDashboardPage() {
             <AdminLink href="/admin/people" title="Manage directory" description="Search records and correct approved directory fields." icon={<Users size={19} />} />
             <AdminLink href="/admin/requests" title="Review requests" description="Monitor community requests and update their status." icon={<ClipboardList size={19} />} />
             <AdminLink href="/admin/announcements" title="Events & notices" description="Publish announcements, manage events, pin notices and control pop-ups." icon={<BellRing size={19} />} />
-            <AdminLink href="/admin/activity" title="Activity reports" description="Search the audit log and export a CSV report." icon={<Activity size={19} />} />
+            <AdminLink href="/admin/students" title="Student activity" description="Review signed-in usage patterns and export student activity as CSV." icon={<Users size={19} />} />
+            <AdminLink href="/admin/activity" title="Admin activity reports" description="Search the administrative audit log and export a CSV report." icon={<Activity size={19} />} />
           </div>
         </section>
       </div>
