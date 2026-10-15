@@ -151,7 +151,7 @@ export default function ImportPeople({ onImported }: { onImported?: () => void }
   }
 
   return (
-    <section className="mt-6 rounded-2xl border border-white/[0.08] bg-[#141413] p-5 sm:p-6">
+    <section id="csv-import" className="mt-6 scroll-mt-28 rounded-2xl border border-white/[0.08] bg-[#141413] p-5 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#91b89a]/20 bg-[#91b89a]/[0.06] text-[#a6c7ad]"><FileSpreadsheet size={19} /></div><div><h2 className="font-semibold">Import directory from CSV</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-[#918d84]">Upload student records in bulk. PeopleFind previews the rows before importing and skips duplicate matric numbers within the same school.</p></div></div>
         <button type="button" onClick={downloadTemplate} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-white/10 px-3 py-2.5 text-xs text-[#c9c3b8] hover:bg-white/[0.04]"><Download size={14} />Download template</button>
