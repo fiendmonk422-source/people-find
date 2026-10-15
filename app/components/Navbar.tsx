@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  Activity,
   Compass,
+  ShieldCheck,
   LogIn,
   LogOut,
   Menu,
@@ -27,6 +27,7 @@ type User = {
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -50,6 +51,35 @@ export default function Navbar() {
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    setIsAdmin(false);
+
+    if (!user?.id) {
+      return () => {
+        active = false;
+      };
+    }
+
+    void supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (active) {
+          setIsAdmin(!error && (data?.role === "admin" || data?.role === "super_admin"));
+        }
+      })
+      .catch(() => {
+        if (active) setIsAdmin(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   async function logout() {
     await supabase.auth.signOut();
@@ -110,9 +140,9 @@ export default function Navbar() {
               Requests
             </NavLink>
 
-            {user && (
-              <NavLink href="/activity" icon={<Activity size={15} />}>
-                Activity
+            {isAdmin && (
+              <NavLink href="/admin" icon={<ShieldCheck size={15} />}>
+                Admin
               </NavLink>
             )}
           </nav>
@@ -201,13 +231,13 @@ export default function Navbar() {
                   Requests
                 </MobileNavLink>
 
-                {user && (
+                {isAdmin && (
                   <MobileNavLink
-                    href="/activity"
-                    icon={<Activity size={17} />}
+                    href="/admin"
+                    icon={<ShieldCheck size={17} />}
                     onClick={closeMobile}
                   >
-                    Activity
+                    Admin
                   </MobileNavLink>
                 )}
               </div>
