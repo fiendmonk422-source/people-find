@@ -14,6 +14,8 @@ export default function StudentActivityTracker() {
     void (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!active || !user) return;
+      const { data: roleRecord } = await supabase.from("user_roles").select("role").eq("user_id", user.id).maybeSingle();
+      if (!active || roleRecord?.role === "admin" || roleRecord?.role === "super_admin") return;
       const activityKey = user.id + ":" + pathname;
       if (lastTracked.current === activityKey) return;
       lastTracked.current = activityKey;
