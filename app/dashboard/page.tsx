@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Activity, ArrowRight, BellRing, CalendarDays, CheckCircle2, ClipboardList, MessageCircle, Plus, Search, Users } from "lucide-react";
+import { Activity, ArrowRight, BellRing, CalendarDays, ClipboardList, MessageCircle, Plus, Search, Users } from "lucide-react";
 import { createSupabaseServerClient } from "../../src/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
