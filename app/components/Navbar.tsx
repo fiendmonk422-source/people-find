@@ -69,15 +69,18 @@ export default function Navbar() {
       return () => { active = false; };
     }
     setNoticeLoading(true);
-    void supabase.from("notifications")
-      .select("id,title,body,href,created_at,read_at")
-      .eq("recipient_user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(6)
-      .then(({ data, error }) => {
-        if (active) setNotices(error ? [] : (data ?? []) as Notice[]);
-      })
-      .finally(() => { if (active) setNoticeLoading(false); });
+    async function loadNotices() {
+      const { data, error } = await supabase.from("notifications")
+        .select("id,title,body,href,created_at,read_at")
+        .eq("recipient_user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(6);
+      if (active) {
+        setNotices(error ? [] : (data ?? []) as Notice[]);
+        setNoticeLoading(false);
+      }
+    }
+    void loadNotices();
     return () => { active = false; };
   }, [user?.id]);
 
