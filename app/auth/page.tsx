@@ -25,6 +25,8 @@ export default function AuthPage() {
     const queryError = new URLSearchParams(window.location.search).get("error");
     if (queryError === "confirmation") {
       setError("We couldn’t confirm that link. Request a fresh confirmation email and open the newest link.");
+    } else if (queryError === "oauth") {
+      setError("Google sign-in could not be completed. Please try again, or continue with email.");
     }
 
     async function checkSession() {
@@ -104,7 +106,27 @@ export default function AuthPage() {
     }
   }
 
-  async function signInWithGoogle() { setLoading(true); setError(""); setMessage(""); const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: getAuthCallbackUrl() } }); if (oauthError) { setError(oauthError.message); setLoading(false); } }
+  async function signInWithGoogle() {
+    setLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: getAuthCallbackUrl() },
+      });
+
+      if (oauthError) throw oauthError;
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Google sign-in could not be started. Please try again or continue with email."
+      );
+      setLoading(false);
+    }
+  }
 
   if (checking) {
     return (
@@ -312,7 +334,7 @@ function getAuthCallbackUrl() {
   const localAddress =
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
-    /^\\d{1,3}(\\.\\d{1,3}){3}$/.test(hostname);
+    /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
   const base = configuredBase || (localAddress ? "https://people-find.vercel.app" : window.location.origin);
   return new URL("/auth/callback", base).toString();
 }
