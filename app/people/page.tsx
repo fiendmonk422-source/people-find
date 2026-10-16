@@ -200,13 +200,7 @@ function PersonCard({ person }: { person: Person }) {
     <article className="group rounded-2xl border border-white/[0.07] bg-[#141413] p-5 transition hover:border-white/[0.12] hover:bg-[#181817]">
       {/* Identity */}
       <div className="flex items-start gap-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-[#1a1a18]">
-          <UserRound
-            size={18}
-            strokeWidth={1.6}
-            className="text-[#cdbd96]"
-          />
-        </div>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/[0.07] bg-[#1a1a18]">{person.photo_url ? <img src={person.photo_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : <UserRound size={18} strokeWidth={1.6} className="text-[#cdbd96]" />}</div>
 
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold text-[#ebe8e1]">
