@@ -76,4 +76,28 @@ drop trigger if exists response_reaction_notification on public.response_feedbac
 create trigger response_reaction_notification after insert or update of vote on public.response_feedback
 for each row execute function public.notify_response_reaction();
 
+
+create or replace function public.notify_published_announcement()
+returns trigger language plpgsql security definer set search_path = '' as $
+begin
+  if new.status = 'published' and (
+    tg_op = 'INSERT'
+    or old.status is distinct from 'published'
+    or old.title is distinct from new.title
+    or old.body is distinct from new.body
+  ) then
+    insert into public.notifications(recipient_user_id, actor_user_id, notification_type, title, body, href)
+    select u.id, new.created_by, 'announcement', 'New campus update: ' || new.title,
+      left(new.body, 180), '/announcements'
+    from auth.users u
+    where u.id is distinct from new.created_by;
+  end if;
+  return new;
+end; $;
+
+drop trigger if exists published_announcement_notification on public.site_announcements;
+create trigger published_announcement_notification
+after insert or update of status, title, body on public.site_announcements
+for each row execute function public.notify_published_announcement();
+
 commit;
