@@ -132,7 +132,7 @@ function parseResultCsv(text: string) {
         const status = value.toLowerCase();
         if (["pending", "collected", "failed", "review"].includes(status)) item.status = status as Status;
       } else {
-        (item as RecordRow)[field] = value;
+        (item as Record<string, unknown>)[field] = value;
       }
     });
     rows.push(item);
@@ -243,11 +243,10 @@ export default function CsvLookupImporter() {
       } else {
         const imported = parseResultCsv(text);
         const lookup = new Map(imported.map((r) => [String(r.matricNumber).trim().toLowerCase(), r]));
-        let matched = 0;
+        const matched = records.filter((record) => lookup.has(record.matricNumber.toLowerCase())).length;
         setRecords((current) => current.map((record) => {
           const incoming = lookup.get(record.matricNumber.toLowerCase());
           if (!incoming) return record;
-          matched += 1;
           const hasDetails = Boolean(incoming.fullName || incoming.email || incoming.phone || incoming.photoUrl);
           return {
             ...record,
@@ -384,6 +383,7 @@ export default function CsvLookupImporter() {
           <div className="mt-5 flex flex-wrap gap-2 border-t border-white/[0.08] pt-5">
             <button type="button" onClick={() => exportRecords("peoplefind-collection-backup.csv", records)} disabled={!records.length} className="inline-flex items-center gap-2 rounded-xl bg-[#cdbd96] px-3 py-2 text-sm font-medium text-[#181713] disabled:opacity-40"><Download size={15} />Export full backup</button>
             <button type="button" onClick={() => exportRecords("peoplefind-collected.csv", records.filter((r) => r.status === "collected"))} disabled={!counts.collected} className="inline-flex items-center gap-2 rounded-xl border border-white/[0.12] px-3 py-2 text-sm disabled:opacity-40"><Download size={15} />Export collected</button>
+            <button type="button" onClick={() => exportRecords("peoplefind-next-batch.csv", nextBatch)} disabled={!nextBatch.length} className="inline-flex items-center gap-2 rounded-xl border border-white/[0.12] px-3 py-2 text-sm disabled:opacity-40"><Download size={15} />Export next batch ({nextBatch.length})</button>
             <button type="button" onClick={() => exportRecords("peoplefind-pending.csv", records.filter((r) => r.status === "pending"))} disabled={!counts.pending} className="inline-flex items-center gap-2 rounded-xl border border-white/[0.12] px-3 py-2 text-sm disabled:opacity-40"><Download size={15} />Export pending</button>
             <button type="button" onClick={() => exportRecords("peoplefind-failed.csv", records.filter((r) => r.status === "failed"))} disabled={!counts.failed} className="inline-flex items-center gap-2 rounded-xl border border-white/[0.12] px-3 py-2 text-sm disabled:opacity-40"><Download size={15} />Export failed</button>
             <button type="button" onClick={clearWorkspace} disabled={!records.length} className="ml-auto inline-flex items-center gap-2 rounded-xl border border-[#d98282]/20 px-3 py-2 text-sm text-[#e0a29a] disabled:opacity-40"><RotateCcw size={15} />Clear workspace</button>
