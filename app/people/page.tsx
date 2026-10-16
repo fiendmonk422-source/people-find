@@ -25,6 +25,7 @@ type Person = {
   matric_number: string | null;
   hostel: string | null;
   room: string | null;
+  photo_url: string | null;
 };
 
 export default async function PeoplePage() {
@@ -79,7 +80,8 @@ export default async function PeoplePage() {
       class_name,
       matric_number,
       hostel,
-      room
+      room,
+      photo_url
     `
     )
     .order("name", { ascending: true })
