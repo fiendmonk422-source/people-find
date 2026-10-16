@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Compass, Loader2 } from "lucide-react";
+import { ArrowRight, Compass, Loader2, Chrome } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { supabase } from "../../src/lib/supabase";
@@ -54,11 +54,7 @@ export default function AuthPage() {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: {
-            data: {
-              nickname: nickname.trim(),
-            },
-          },
+          options: { data: { nickname: nickname.trim() }, emailRedirectTo: window.location.origin + "/auth/callback" },
         });
 
         if (error) {
@@ -101,6 +97,8 @@ export default function AuthPage() {
       setLoading(false);
     }
   }
+
+  async function signInWithGoogle() { setLoading(true); setError(""); setMessage(""); const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + "/auth/callback" } }); if (oauthError) { setError(oauthError.message); setLoading(false); } }
 
   if (checking) {
     return (
@@ -155,8 +153,7 @@ export default function AuthPage() {
           </p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <button type="button" onClick={signInWithGoogle} disabled={loading} className="mb-5 flex w-full items-center justify-center gap-3 rounded-xl border border-white/[0.12] bg-[#f7f6f2] px-4 py-3.5 text-sm font-semibold text-[#171715] transition hover:bg-white disabled:opacity-50"><Chrome size={17} />Continue with Google</button><div className="mb-5 flex items-center gap-3 text-[11px] text-[#625f58]"><span className="h-px flex-1 bg-white/[0.08]" /><span>OR USE EMAIL</span><span className="h-px flex-1 bg-white/[0.08]" /></div><form onSubmit={handleSubmit} className="space-y-4">
           {mode === "signup" && (
             <div>
               <label
