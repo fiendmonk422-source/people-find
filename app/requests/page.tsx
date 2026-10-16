@@ -24,6 +24,7 @@ type RequestItem = {
   hostel: string | null;
   clues: string | null;
   status: string | null;
+  user_id?: string | null;
   created_at: string;
 };
 
@@ -90,7 +91,7 @@ export default function RequestsPage() {
           supabase
             .from("requests")
             .select(
-              "id, requester_name, target_name, school, faculty, department, level, hostel, clues, status, created_at"
+              "id, user_id, requester_name, target_name, school, faculty, department, level, hostel, clues, status, created_at"
             )
             .order("created_at", { ascending: false }),
 
@@ -297,6 +298,15 @@ export default function RequestsPage() {
     }
   }
 
+  async function updateRequestStatus(requestId: string, status: "Open" | "Resolved") {
+    setError("");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setError("Please sign in first."); return; }
+    const { error: updateError } = await supabase.from("requests").update({ status }).eq("id", requestId).eq("user_id", user.id);
+    if (updateError) setError(updateError.message || "Could not update request status.");
+    else await loadRequests();
+  }
+
   const responseList = (requestId: string) =>
     responses.filter(
       (item) => item.request_id === requestId
@@ -416,6 +426,7 @@ export default function RequestsPage() {
                       >
                         {request.status || "Open"}
                       </span>
+                      {request.user_id === currentUserId && <button type="button" onClick={() => void updateRequestStatus(request.id, isOpen ? "Resolved" : "Open")} className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-medium text-[#cdbd96] transition hover:bg-white/[0.04]">{isOpen ? "Mark resolved" : "Reopen request"}</button>}
 
                       <span className="text-[10px] uppercase tracking-[0.16em] text-[#625f58]">
                         Finding someone
