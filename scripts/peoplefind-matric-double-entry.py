@@ -201,14 +201,9 @@ def main() -> int:
                     record["error"] = str(error)[:500]
                     print(f"[{index + 1}/{len(matric_rows)}] ERROR for {matric}: {error}", file=sys.stderr)
                     write_checkpoint(output_path, records)
-                    answer = input("The run is paused. Fix the page/selectors, then type R to retry this row, or Enter to continue: ").strip().lower()
-                    if answer == "r":
-                        record["lookup_status"] = "pending"
-                        record["error"] = ""
-                        # Revisit the current page only if navigation moved away from the lookup page.
-                        if page.url == "about:blank":
-                            page.goto(url, wait_until="domcontentloaded")
-                        continue
+                    answer = input("The run is paused. Fix the issue before continuing, or type Q to stop: ").strip().lower()
+                    if answer == "q":
+                        break
 
                 write_checkpoint(output_path, records)
 
