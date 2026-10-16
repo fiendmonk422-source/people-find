@@ -106,7 +106,8 @@ export default function ImportPeople({ onImported }: { onImported?: () => void }
   const [unknown, setUnknown] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [result, setResult] = useState<ImportResult | null>(null);
-  const [loading, setLoading] = useState(false);\n  const [processedRows, setProcessedRows] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [processedRows, setProcessedRows] = useState(0);
 
   async function chooseFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
