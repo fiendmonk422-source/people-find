@@ -30,6 +30,7 @@ type Person = {
   level: string | null;
   class_name: string | null;
   matric_number: string | null;
+  photo_url: string | null;
   hostel: string | null;
   room: string | null;
   state: string | null;
@@ -124,6 +125,7 @@ export default function SearchPage() {
           level,
           class_name,
           matric_number,
+          photo_url,
           hostel,
           room,
           state,
@@ -585,12 +587,8 @@ function PersonCard({ person }: { person: Person }) {
   return (
     <article className="group rounded-2xl border border-white/[0.07] bg-[#141413] p-5 transition hover:border-white/[0.12] hover:bg-[#181817]">
       <div className="flex items-start gap-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-[#1a1a18]">
-          <UserRound
-            size={18}
-            strokeWidth={1.6}
-            className="text-[#cdbd96]"
-          />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/[0.07] bg-[#1a1a18]">
+          {person.photo_url ? <img src={person.photo_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : <UserRound size={18} strokeWidth={1.6} className="text-[#cdbd96]" />}
         </div>
 
         <div className="min-w-0 flex-1">
