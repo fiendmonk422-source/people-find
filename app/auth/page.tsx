@@ -159,7 +159,7 @@ export default function AuthPage() {
           </p>
         </div>
 
-        <button type="button" onClick={signInWithGoogle} disabled={loading} className="mb-5 flex w-full items-center justify-center gap-3 rounded-xl border border-white/[0.12] bg-[#f7f6f2] px-4 py-3.5 text-sm font-semibold text-[#171715] transition hover:bg-white disabled:opacity-50"><GoogleMark />Continue with Google</button><div className="mb-5 flex items-center gap-3 text-[11px] text-[#625f58]"><span className="h-px flex-1 bg-white/[0.08]" /><span>OR USE EMAIL</span><span className="h-px flex-1 bg-white/[0.08]" /></div><form onSubmit={handleSubmit} className="space-y-4">
+        <button type="button" onClick={signInWithGoogle} disabled={loading} className="pf-button-primary mb-5 w-full disabled:opacity-50"><GoogleMark />Continue with Google</button><div className="mb-5 flex items-center gap-3 text-[11px] text-[#625f58]"><span className="h-px flex-1 bg-white/[0.08]" /><span>OR USE EMAIL</span><span className="h-px flex-1 bg-white/[0.08]" /></div><form onSubmit={handleSubmit} className="space-y-4">
           {mode === "signup" && (
             <div>
               <label
