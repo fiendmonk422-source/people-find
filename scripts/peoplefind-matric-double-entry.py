@@ -91,7 +91,7 @@ def write_checkpoint(path: Path, records: list[dict[str, str]]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--url", help="Full URL of the lookup website")
+    parser.add_argument("--url", default="https://cgs.ui.edu.ng/portal/", help="Full URL of the lookup website (defaults to the University of Ibadan CGS portal)")
     parser.add_argument("--csv", dest="csv_path", help="Path to the matric-number CSV")
     parser.add_argument("--first-selector", default='input[name="matric_number"]',
                         help="CSS selector for the first matric-number input")
