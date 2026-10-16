@@ -132,6 +132,8 @@ export default function Navbar() {
 
           {/* DESKTOP NAV */}
           <nav className="hidden items-center gap-1 lg:flex">
+            {user && <NavLink href="/dashboard" icon={<Compass size={15} />}>Home</NavLink>}
+            {user && <NavLink href="/notifications" icon={<BellRing size={15} />}>Notifications</NavLink>}
             <NavLink href="/search" icon={<Search size={15} />}>
               Search
             </NavLink>
@@ -217,6 +219,8 @@ export default function Navbar() {
           <div className="border-t border-white/[0.06] bg-[#0f0f0e] lg:hidden">
             <nav className="mx-auto max-w-7xl px-5 py-4 sm:px-6">
               <div className="grid gap-1">
+                {user && <MobileNavLink href="/dashboard" icon={<Compass size={17} />} onClick={closeMobile}>Student home</MobileNavLink>}
+                {user && <MobileNavLink href="/notifications" icon={<BellRing size={17} />} onClick={closeMobile}>Notifications</MobileNavLink>}
                 <MobileNavLink
                   href="/search"
                   icon={<Search size={17} />}
