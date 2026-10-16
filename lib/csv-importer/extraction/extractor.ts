@@ -30,7 +30,7 @@ export async function extractStudentBatch(matricNumbers: string[]): Promise<Extr
       configured: false,
       processed: 0,
       results: [],
-      message: "The authorized source endpoint is not configured yet. The URL is intentionally blank.",
+      message: "CGS portal reference is configured, but its login page is not a bulk API. Configure an institution-approved export/API endpoint before collecting records.",
     };
   }
 
