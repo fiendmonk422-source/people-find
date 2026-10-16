@@ -347,7 +347,7 @@ export default function CsvLookupImporter() {
                 <div className="min-w-0 flex-1">
                   <h2 className="font-semibold">3. Lookup batches</h2>
                   <p className="mt-1 text-sm leading-6 text-[#918d84]">
-                    The queue is prepared for batches of 10 ({Math.ceil(uniqueRows.length / 10).toLocaleString()} batch(es) for this file). The live lookup runner is intentionally not started because the target URL and page-specific form/result mapping are not configured yet.
+                    The queue is prepared for batches of 10 ({Math.ceil(uniqueRows.length / 10).toLocaleString()} batch(es) for this file). The website button stays disabled because a web page cannot safely control another website's form across browser security boundaries. A local browser runner now fills both matric-number fields and submits each row.
                   </p>
                   <button
                     type="button"
@@ -358,7 +358,7 @@ export default function CsvLookupImporter() {
                     <Globe2 size={16} /> Start website lookup (not configured)
                   </button>
                   <p className="mt-3 text-xs leading-5 text-[#77736c]">
-                    Once the website is available, we can connect its two matric-number inputs and submit button, map the returned student fields, and add pause/resume plus checkpointed CSV exports. No database writes are performed by this page.
+                    The local runner is in scripts/peoplefind-matric-double-entry.py. It pauses every 10 submissions and saves a checkpoint CSV; it does not write to Supabase or scrape student details yet. The exact website URL and CSS selectors must be supplied when the lookup site is available.
                   </p>
                 </div>
               </div>
