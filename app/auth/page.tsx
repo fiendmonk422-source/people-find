@@ -177,6 +177,8 @@ export default function AuthPage() {
             </div>
           )}
 
+          {mode === "signup" && <div><label htmlFor="school" className="mb-2 block text-xs font-medium text-[#a6a198]">School / institution (optional)</label><input id="school" type="text" value={school} onChange={(event) => setSchool(event.target.value)} placeholder="Your university or institution" autoComplete="organization" className="w-full rounded-xl border border-white/[0.08] bg-[#141413] px-4 py-3 text-sm text-[#ebe8e1] placeholder:text-[#5f5c55] transition focus:border-[#cdbd96]/40" disabled={loading} /></div>}
+
           <div>
             <label
               htmlFor="email"
