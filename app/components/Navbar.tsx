@@ -67,29 +67,63 @@ export default function Navbar() {
     const userId = user?.id;
     if (!userId) {
       setNotices([]);
+      setUnreadCount(0);
+      setNoticeLoading(false);
       return () => { active = false; };
     }
+
     setNoticeLoading(true);
     async function loadNotices() {
-      const { data, error } = await supabase.from("notifications")
-        .select("id,title,body,href,created_at,read_at")
-        .eq("recipient_user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(6);
+      const [listResult, countResult] = await Promise.all([
+        supabase.from("notifications")
+          .select("id,title,body,href,created_at,read_at")
+          .eq("recipient_user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(6),
+        supabase.from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("recipient_user_id", userId)
+          .is("read_at", null),
+      ]);
       if (active) {
-        setNotices(error ? [] : (data ?? []) as Notice[]);
+        setNotices(listResult.error ? [] : (listResult.data ?? []) as Notice[]);
+        setUnreadCount(countResult.error ? 0 : (countResult.count ?? 0));
         setNoticeLoading(false);
       }
     }
+
     void loadNotices();
-    return () => { active = false; };
+    const channel = supabase.channel("student-notifications-" + userId)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "notifications",
+        filter: "recipient_user_id=eq." + userId,
+      }, (payload) => {
+        const notice = payload.new as Notice;
+        if (!active || !notice?.id) return;
+        setNotices((current) => [notice, ...current.filter((row) => row.id !== notice.id)].slice(0, 6));
+        if (!notice.read_at) setUnreadCount((count) => count + 1);
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
   }, [user?.id]);
 
   async function openNotice(item: Notice) {
     if (!item.read_at) {
       const now = new Date().toISOString();
-      const { error } = await supabase.from("notifications").update({ read_at: now }).eq("id", item.id);
-      if (!error) setNotices((current) => current.map((row) => row.id === item.id ? { ...row, read_at: now } : row));
+      const { error } = await supabase.from("notifications")
+        .update({ read_at: now })
+        .eq("id", item.id)
+        .eq("recipient_user_id", user?.id);
+      if (!error) {
+        setNotices((current) => current.map((row) => row.id === item.id ? { ...row, read_at: now } : row));
+        setUnreadCount((count) => Math.max(0, count - 1));
+      }
     }
     setNoticeOpen(false);
     setMobileOpen(false);
@@ -97,14 +131,20 @@ export default function Navbar() {
   }
 
   async function markNoticesRead() {
-    const ids = notices.filter((item) => !item.read_at).map((item) => item.id);
-    if (!ids.length) return;
+    const userId = user?.id;
+    if (!userId || unreadCount === 0) return;
     const now = new Date().toISOString();
-    const { error } = await supabase.from("notifications").update({ read_at: now }).in("id", ids);
-    if (!error) setNotices((current) => current.map((row) => ({ ...row, read_at: row.read_at || now })));
+    const { error } = await supabase.from("notifications")
+      .update({ read_at: now })
+      .eq("recipient_user_id", userId)
+      .is("read_at", null);
+    if (!error) {
+      setNotices((current) => current.map((row) => ({ ...row, read_at: row.read_at || now })));
+      setUnreadCount(0);
+    }
   }
 
-  const unreadNotices = notices.filter((item) => !item.read_at).length;
+  const unreadNotices = unreadCount;
 
   useEffect(() => {
     let active = true;
