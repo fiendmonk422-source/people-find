@@ -331,11 +331,27 @@ export default function AuthPage() {
 function getAuthCallbackUrl() {
   const configuredBase = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   const hostname = window.location.hostname;
-  const localAddress =
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
-  const base = configuredBase || (localAddress ? "https://people-find.vercel.app" : window.location.origin);
+  const isLocalHostname = (value: string) =>
+    value === "localhost" ||
+    value === "127.0.0.1" ||
+    /^\d{1,3}(\.\d{1,3}){3}$/.test(value);
+
+  let configuredIsLocal = false;
+  if (configuredBase) {
+    try {
+      configuredIsLocal = isLocalHostname(new URL(configuredBase).hostname);
+    } catch {
+      configuredIsLocal = true;
+    }
+  }
+
+  const base =
+    configuredBase && !configuredIsLocal
+      ? configuredBase
+      : isLocalHostname(hostname)
+        ? "https://people-find.vercel.app"
+        : window.location.origin;
+
   return new URL("/auth/callback", base).toString();
 }
 
