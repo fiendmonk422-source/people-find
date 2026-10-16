@@ -1,23 +1,5 @@
 begin;
 
-create table if not exists public.student_activity_log (
-  id bigint generated always as identity primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  event_type text not null check (event_type in ('page_view','directory_search','profile_view','request_created','response_created','reaction_created')),
-  page_path text not null default '/',
-  metadata jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now()
-);
-create index if not exists student_activity_created_at_idx on public.student_activity_log(created_at desc);
-create index if not exists student_activity_user_created_idx on public.student_activity_log(user_id, created_at desc);
-create index if not exists student_activity_type_created_idx on public.student_activity_log(event_type, created_at desc);
-alter table public.student_activity_log enable row level security;
-revoke all on table public.student_activity_log from PUBLIC, anon, authenticated;
-grant select, insert on table public.student_activity_log to authenticated;
-create policy student_activity_insert_own on public.student_activity_log for insert to authenticated with check (user_id = (select auth.uid()));
-create policy student_activity_select_own on public.student_activity_log for select to authenticated using (user_id = (select auth.uid()));
-create policy student_activity_select_admin on public.student_activity_log for select to authenticated using (exists (select 1 from public.user_roles ur where ur.user_id = (select auth.uid()) and ur.role in ('admin','super_admin')));
-
 create or replace function public.admin_import_people(p_rows jsonb)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
@@ -107,4 +89,5 @@ end;
 $$;
 revoke all on function public.admin_import_people(jsonb) from PUBLIC, anon;
 grant execute on function public.admin_import_people(jsonb) to authenticated;
+
 commit;
