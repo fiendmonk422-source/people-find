@@ -16,7 +16,8 @@ create index if not exists notifications_recipient_created_idx on public.notific
 create index if not exists notifications_unread_idx on public.notifications(recipient_user_id, created_at desc) where read_at is null;
 alter table public.notifications enable row level security;
 revoke all on public.notifications from public, anon;
-grant select, update on public.notifications to authenticated;
+grant select on public.notifications to authenticated;
+grant update (read_at) on public.notifications to authenticated;
 drop policy if exists notifications_read_own on public.notifications;
 create policy notifications_read_own on public.notifications for select to authenticated using (recipient_user_id = (select auth.uid()));
 drop policy if exists notifications_mark_own_read on public.notifications;
@@ -44,7 +45,7 @@ for each row execute function public.notify_request_reply();
 create or replace function public.notify_request_status_change()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
-  if new.status is distinct from old.status and new.user_id is not null then
+  if new.status is distinct from old.status and new.user_id is not null and (auth.uid() is null or auth.uid() <> new.user_id) then
     insert into public.notifications(recipient_user_id, actor_user_id, notification_type, title, body, href, related_request_id)
     values (new.user_id, auth.uid(), 'request_status', 'Request status updated',
       'Your request is now ' || coalesce(new.status, 'updated') || '.',
