@@ -55,7 +55,7 @@ function parseCsv(text: string): string[][] {
 }
 
 function normalizeHeader(value: string): string {
-  return value.trim().toLowerCase().replace(/[.-]/g, "_").replace(/\s+/g, " ");
+  return value.trim().toLowerCase().replace(/[.-]/g, "_").replace(/\s+/g, " ").replace(/_+$/g, "");
 }
 
 function escapeCsv(value: string): string {
