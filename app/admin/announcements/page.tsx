@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, BellRing, CalendarDays, Check, Eye, EyeOff, Megaphone, Pencil, Pin, Plus, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, BellRing, CalendarDays, Check, Eye, EyeOff, Megaphone, Pencil, Pin, Plus, Trash2 } from "lucide-react";
 import { supabase } from "../../../src/lib/supabase";
 
 type Kind = "notice" | "event";
