@@ -420,6 +420,8 @@ export default function RequestsPage() {
               Create the first request and let the network help.
             </p>
           </div>
+         ) : visibleRequests.length === 0 ? (
+          <div className="mt-10 border border-dashed border-white/[0.08] bg-[#141413] p-10 text-center text-sm text-[#918d84]">No requests match these filters. Try another search or choose All requests.</div>
         ) : (
           <div className="mt-10 space-y-8">
             {visibleRequests.map((request) => {
