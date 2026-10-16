@@ -129,7 +129,7 @@ export default async function PeoplePage() {
           <div className="mb-5 flex items-center justify-between">
             <div>
               <p className="text-[10px] uppercase tracking-[0.18em] text-[#625f58]">
-                Directory
+                Recently updated profiles
               </p>
 
               <h2 className="mt-1 text-lg font-semibold">
