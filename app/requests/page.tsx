@@ -6,6 +6,7 @@ import {
   Loader2,
   MessageCircle,
   Plus,
+  Search,
   Send,
   Users,
   X,
@@ -24,6 +25,7 @@ type RequestItem = {
   hostel: string | null;
   clues: string | null;
   status: string | null;
+  user_id?: string | null;
   created_at: string;
 };
 
@@ -51,6 +53,8 @@ export default function RequestsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "resolved">("all");
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [responseText, setResponseText] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -90,7 +94,7 @@ export default function RequestsPage() {
           supabase
             .from("requests")
             .select(
-              "id, requester_name, target_name, school, faculty, department, level, hostel, clues, status, created_at"
+              "id, user_id, requester_name, target_name, school, faculty, department, level, hostel, clues, status, created_at"
             )
             .order("created_at", { ascending: false }),
 
@@ -297,6 +301,23 @@ export default function RequestsPage() {
     }
   }
 
+  async function updateRequestStatus(requestId: string, status: "Open" | "Resolved") {
+    setError("");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setError("Please sign in first."); return; }
+    const { error: updateError } = await supabase.rpc("update_own_request_status", { p_request_id: requestId, p_status: status });
+    if (updateError) setError(updateError.message || "Could not update request status.");
+    else await loadRequests();
+  }
+
+  const visibleRequests = requests.filter((request) => {
+    const query = searchTerm.trim().toLowerCase();
+    const matchesText = !query || [request.target_name, request.school, request.faculty, request.department, request.hostel, request.clues].some((value) => value?.toLowerCase().includes(query));
+    const resolved = (request.status || "Open").toLowerCase() === "resolved";
+    const matchesStatus = statusFilter === "all" || (statusFilter === "resolved" ? resolved : !resolved);
+    return matchesText && matchesStatus;
+  });
+
   const responseList = (requestId: string) =>
     responses.filter(
       (item) => item.request_id === requestId
@@ -362,6 +383,18 @@ export default function RequestsPage() {
           </div>
         )}
 
+        {!loading && requests.length > 0 && (
+          <div className="mt-7 grid gap-3 sm:grid-cols-[1fr_auto]">
+            <label className="flex items-center gap-3 rounded-xl border border-white/[0.08] bg-[#141413] px-4">
+              <Search size={16} className="shrink-0 text-[#77736c]" />
+              <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search requests by name, school, department or clue" className="min-w-0 flex-1 bg-transparent py-3 text-sm text-[#ebe8e1] outline-none placeholder:text-[#625f58]" />
+            </label>
+            <select aria-label="Filter requests by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "all" | "open" | "resolved")} className="rounded-xl border border-white/[0.08] bg-[#141413] px-4 py-3 text-sm text-[#d8d4cc] outline-none">
+              <option value="all">All requests</option><option value="open">Open only</option><option value="resolved">Resolved</option>
+            </select>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex min-h-[40vh] items-center justify-center">
             <div className="flex items-center gap-3 text-sm text-[#918d84]">
@@ -387,9 +420,11 @@ export default function RequestsPage() {
               Create the first request and let the network help.
             </p>
           </div>
+         ) : visibleRequests.length === 0 ? (
+          <div className="mt-10 border border-dashed border-white/[0.08] bg-[#141413] p-10 text-center text-sm text-[#918d84]">No requests match these filters. Try another search or choose All requests.</div>
         ) : (
           <div className="mt-10 space-y-8">
-            {requests.map((request) => {
+            {visibleRequests.map((request) => {
               const requestResponses = responseList(
                 request.id
               );
@@ -416,6 +451,7 @@ export default function RequestsPage() {
                       >
                         {request.status || "Open"}
                       </span>
+                      {request.user_id === currentUserId && <button type="button" onClick={() => void updateRequestStatus(request.id, isOpen ? "Resolved" : "Open")} className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-medium text-[#cdbd96] transition hover:bg-white/[0.04]">{isOpen ? "Mark resolved" : "Reopen request"}</button>}
 
                       <span className="text-[10px] uppercase tracking-[0.16em] text-[#625f58]">
                         Finding someone

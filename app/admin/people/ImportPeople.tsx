@@ -4,7 +4,7 @@ import { ChangeEvent, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, Loader2, Upload, X } from "lucide-react";
 
 type ImportRow = Record<string, string | boolean | null>;
-type ImportResult = { inserted: number; skipped_duplicates: number; rejected: number; submitted: number };
+type ImportResult = { inserted: number; updated?: number; skipped_duplicates: number; rejected: number; submitted: number };
 
 const aliases: Record<string, string> = {
   name: "name", fullname: "name", fullstudentname: "name", studentname: "name", displayname: "name",
@@ -74,7 +74,7 @@ function mapCsv(text: string): { rows: ImportRow[]; headers: string[]; unknown: 
   const firstIndex = mapped.indexOf("first_name");
   const lastIndex = mapped.indexOf("last_name");
   if (nameIndex < 0 && firstIndex < 0 && lastIndex < 0) throw new Error("Your CSV needs a Name column, or First name and Last name columns.");
-  if (matrix.length - 1 > 5000) throw new Error("This file has more than 5,000 rows. Split it into smaller CSV files.");
+  if (matrix.length - 1 > 50000) throw new Error("This file has more than 50,000 rows. Split it into smaller CSV files.");
   const rows: ImportRow[] = [];
   for (let i = 1; i < matrix.length; i++) {
     const values = matrix[i];
@@ -107,6 +107,7 @@ export default function ImportPeople({ onImported }: { onImported?: () => void }
   const [error, setError] = useState("");
   const [result, setResult] = useState<ImportResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [processedRows, setProcessedRows] = useState(0);
 
   async function chooseFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -114,7 +115,7 @@ export default function ImportPeople({ onImported }: { onImported?: () => void }
     if (!file) return;
     setFileName(file.name);
     if (!file.name.toLowerCase().endsWith(".csv")) { setError("Choose a .csv file. Excel files should be saved as CSV UTF-8 first."); return; }
-    if (file.size > 5 * 1024 * 1024) { setError("This file is larger than 5 MB. Split it into smaller CSV files."); return; }
+    if (file.size > 5 * 1024 * 1024) { setError("This file is larger than 5 MB. Export a smaller CSV file."); return; }
     try {
       const parsed = mapCsv(await file.text());
       setRows(parsed.rows); setHeaders(parsed.headers); setUnknown(parsed.unknown);
@@ -125,22 +126,50 @@ export default function ImportPeople({ onImported }: { onImported?: () => void }
 
   async function importRows() {
     if (!rows.length || loading) return;
-    setLoading(true); setError(""); setResult(null);
+    setLoading(true);
+    setError("");
+    setResult(null);
+    setProcessedRows(0);
+    const totals: ImportResult = { inserted: 0, updated: 0, skipped_duplicates: 0, rejected: 0, submitted: 0 };
     try {
-      const response = await fetch("/api/admin/people/import", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows }),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.message || "CSV import failed.");
-      setResult(payload.result as ImportResult);
+      const batchSize = 5000;
+      for (let offset = 0; offset < rows.length; offset += batchSize) {
+        const batch = rows.slice(offset, offset + batchSize);
+        const response = await fetch("/api/admin/people/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rows: batch }),
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.message || "CSV import failed.");
+        }
+        const batchResult = payload.result as ImportResult;
+        totals.inserted += batchResult.inserted || 0;
+        totals.updated = (totals.updated || 0) + (batchResult.updated || 0);
+        totals.skipped_duplicates += batchResult.skipped_duplicates || 0;
+        totals.rejected += batchResult.rejected || 0;
+        totals.submitted += batchResult.submitted || batch.length;
+        setProcessedRows(Math.min(offset + batch.length, rows.length));
+      }
+
+      setResult({ ...totals });
       onImported?.();
-      setRows([]); setHeaders([]); setUnknown([]);
+      setRows([]);
+      setHeaders([]);
+      setUnknown([]);
       setFileName("");
       if (inputRef.current) inputRef.current.value = "";
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "CSV import failed. Please try again.");
-    } finally { setLoading(false); }
+      setResult(totals.submitted ? { ...totals } : null);
+      setError(
+        totals.submitted
+          ? "Import stopped after " + totals.submitted.toLocaleString() + " rows. Those batches were saved; you can safely retry the full CSV because matching student records are updated."
+          : cause instanceof Error ? cause.message : "CSV import failed. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   function downloadTemplate() {
@@ -158,14 +187,14 @@ export default function ImportPeople({ onImported }: { onImported?: () => void }
       </div>
       <div className="mt-5 rounded-xl border border-dashed border-white/15 bg-[#10100f] p-5">
         <input ref={inputRef} type="file" accept=".csv,text/csv" onChange={chooseFile} className="block w-full text-sm text-[#a6a197] file:mr-4 file:rounded-lg file:border-0 file:bg-[#ebe8e1] file:px-3 file:py-2 file:text-xs file:font-semibold file:text-[#0c0c0b] hover:file:bg-white" />
-        <p className="mt-3 text-xs leading-5 text-[#77736c]">CSV UTF-8 · Maximum 5 MB / 5,000 rows · Existing records are not overwritten · Unmapped columns are ignored.</p>
+        <p className="mt-3 text-xs leading-5 text-[#77736c]">CSV UTF-8 · Maximum 5 MB / 50,000 rows · Imported in batches of 5,000. Matching matric number + school updates an existing record; columns missing from the CSV are preserved. No table columns are added.</p>
       </div>
       {error && <div role="alert" className="mt-4 flex gap-2 rounded-xl border border-[#d98282]/20 bg-[#d98282]/[0.06] p-3 text-sm text-[#e0a29a]"><AlertCircle size={17} className="mt-0.5 shrink-0" /><span>{error}</span><button type="button" onClick={() => setError("")} aria-label="Dismiss error" className="ml-auto"><X size={15} /></button></div>}
-      {result && <div role="status" className="mt-4 rounded-xl border border-[#91b89a]/20 bg-[#91b89a]/[0.06] p-4"><div className="flex items-center gap-2 text-sm font-medium text-[#a6c7ad]"><CheckCircle2 size={17} />Import finished</div><div className="mt-3 grid grid-cols-3 gap-2 text-center"><div className="rounded-lg bg-black/20 p-3"><strong className="block text-xl">{result.inserted}</strong><span className="text-[10px] text-[#918d84]">Added</span></div><div className="rounded-lg bg-black/20 p-3"><strong className="block text-xl">{result.skipped_duplicates}</strong><span className="text-[10px] text-[#918d84]">Duplicates skipped</span></div><div className="rounded-lg bg-black/20 p-3"><strong className="block text-xl">{result.rejected}</strong><span className="text-[10px] text-[#918d84]">Rejected rows</span></div></div></div>}
+      {result && <div role="status" className="mt-4 rounded-xl border border-[#91b89a]/20 bg-[#91b89a]/[0.06] p-4"><div className="flex items-center gap-2 text-sm font-medium text-[#a6c7ad]"><CheckCircle2 size={17} />Import finished</div><div className="mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-4"><div className="rounded-lg bg-black/20 p-3"><strong className="block text-xl">{result.inserted}</strong><span className="text-[10px] text-[#918d84]">Added</span></div><div className="rounded-lg bg-black/20 p-3"><strong className="block text-xl">{result.updated ?? 0}</strong><span className="text-[10px] text-[#918d84]">Updated</span></div><div className="rounded-lg bg-black/20 p-3"><strong className="block text-xl">{result.skipped_duplicates}</strong><span className="text-[10px] text-[#918d84]">Duplicates skipped</span></div><div className="rounded-lg bg-black/20 p-3"><strong className="block text-xl">{result.rejected}</strong><span className="text-[10px] text-[#918d84]">Rejected rows</span></div></div></div>}
       {rows.length > 0 && <div className="mt-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-medium">{fileName}</p><p className="mt-1 text-xs text-[#91b89a]">{rows.length.toLocaleString()} student rows ready to import</p></div><button type="button" onClick={() => { setRows([]); setFileName(""); if (inputRef.current) inputRef.current.value = ""; }} className="rounded-lg px-3 py-2 text-xs text-[#918d84] hover:bg-white/[0.04]">Remove file</button></div>
         {unknown.length > 0 && <p className="mt-3 text-xs text-[#bcae87]">Ignored columns: {unknown.join(", ")}</p>}
         <div className="mt-3 overflow-x-auto rounded-xl border border-white/[0.08]"><table className="min-w-full text-left text-xs"><thead className="bg-[#10100f] text-[#918d84]"><tr>{headers.slice(0, 6).map((h) => <th key={h} className="px-3 py-3 font-medium">{h}</th>)}</tr></thead><tbody className="divide-y divide-white/[0.06]">{rows.slice(0, 5).map((row, i) => <tr key={i}>{headers.slice(0, 6).map((h) => { const key = aliases[normalizeHeader(h)]; return <td key={h} className="max-w-48 truncate px-3 py-3 text-[#c9c3b8]">{String(key ? row[key] ?? "" : "")}</td>; })}</tr>)}</tbody></table></div><p className="mt-2 text-[10px] text-[#625f58]">Preview shows the first 5 rows and up to 6 recognized columns.</p>
-        <button type="button" disabled={loading} onClick={() => void importRows()} className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-[#ebe8e1] px-4 py-3 text-sm font-semibold text-[#0c0c0b] disabled:opacity-50">{loading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}{loading ? "Importing records…" : "Confirm import of " + rows.length.toLocaleString() + " rows"}</button>
+        <button type="button" disabled={loading} onClick={() => void importRows()} className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-[#ebe8e1] px-4 py-3 text-sm font-semibold text-[#0c0c0b] disabled:opacity-50">{loading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}{loading ? "Importing " + processedRows.toLocaleString() + " / " + rows.length.toLocaleString() + "…" : "Import or update " + rows.length.toLocaleString() + " rows"}</button>
       </div>}
     </section>
   );

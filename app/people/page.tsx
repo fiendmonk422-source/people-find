@@ -25,6 +25,7 @@ type Person = {
   matric_number: string | null;
   hostel: string | null;
   room: string | null;
+  photo_url: string | null;
 };
 
 export default async function PeoplePage() {
@@ -52,7 +53,7 @@ export default async function PeoplePage() {
 
           <Link
             href="/auth"
-            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-[#ebe8e1] px-5 py-3 text-sm font-semibold text-[#0c0c0b] transition hover:bg-white"
+            className="pf-button-primary mt-7"
           >
             Sign in
             <ArrowRight size={15} />
@@ -79,10 +80,11 @@ export default async function PeoplePage() {
       class_name,
       matric_number,
       hostel,
-      room
+      room,
+      photo_url
     `
     )
-    .order("name", { ascending: true })
+    .order("updated_at", { ascending: false })
     .limit(100);
 
   const people = (data ?? []) as Person[];
@@ -102,17 +104,16 @@ export default async function PeoplePage() {
             </h1>
 
             <p className="mt-4 text-sm leading-6 text-[#77736c] sm:text-base">
-              Explore available directory records and open a full profile
-              when you find the person you're looking for.
+              Browse recently updated student profiles, or search the full directory using a name, matric number, school or other clue.
             </p>
           </div>
 
           <Link
             href="/search"
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#ebe8e1] px-5 py-3 text-sm font-semibold text-[#0c0c0b] transition hover:bg-white"
+            className="pf-button-primary shrink-0"
           >
             <Search size={16} />
-            Search directory
+            Search all people
           </Link>
         </div>
 
@@ -128,7 +129,7 @@ export default async function PeoplePage() {
           <div className="mb-5 flex items-center justify-between">
             <div>
               <p className="text-[10px] uppercase tracking-[0.18em] text-[#625f58]">
-                Directory
+                Recently updated profiles
               </p>
 
               <h2 className="mt-1 text-lg font-semibold">
@@ -137,7 +138,7 @@ export default async function PeoplePage() {
             </div>
 
             <p className="text-xs text-[#625f58]">
-              Showing up to 100 records
+              Latest 100 updates
             </p>
           </div>
 
@@ -198,13 +199,7 @@ function PersonCard({ person }: { person: Person }) {
     <article className="group rounded-2xl border border-white/[0.07] bg-[#141413] p-5 transition hover:border-white/[0.12] hover:bg-[#181817]">
       {/* Identity */}
       <div className="flex items-start gap-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-[#1a1a18]">
-          <UserRound
-            size={18}
-            strokeWidth={1.6}
-            className="text-[#cdbd96]"
-          />
-        </div>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/[0.07] bg-[#1a1a18]">{person.photo_url ? <img src={person.photo_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : <UserRound size={18} strokeWidth={1.6} className="text-[#cdbd96]" />}</div>
 
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold text-[#ebe8e1]">

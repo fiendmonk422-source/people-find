@@ -194,3 +194,7 @@ select:focus {
     -webkit-tap-highlight-color: transparent;
   }
 }
+
+/* Keep text readable on light action controls across responsive layouts. */
+.pf-button-primary { color: #11110f !important; }
+@media (max-width: 1023px) { header a, header button { -webkit-text-size-adjust: 100%; } }

@@ -38,7 +38,7 @@ export default function HomePage() {
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/search"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#ebe8e1] px-5 py-3.5 text-sm font-semibold text-[#0c0c0b] transition hover:bg-white"
+                className="pf-button-primary"
               >
                 <Search size={17} />
                 Search People
@@ -47,7 +47,7 @@ export default function HomePage() {
 
               <Link
                 href="/people"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-[#141413] px-5 py-3.5 text-sm font-medium text-[#c4c0b8] transition hover:border-white/[0.13] hover:bg-[#191918] hover:text-[#ebe8e1]"
+                className="pf-button-secondary"
               >
                 <Users size={17} />
                 Browse Directory

@@ -108,9 +108,7 @@ export default async function ProfilePage({
         <section className="pf-surface mt-7 overflow-hidden rounded-2xl">
           <div className="border-b border-white/[0.075] px-5 py-7 sm:px-8 sm:py-9">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-[#1a1a18] text-[#918d84]">
-                <UserCircle size={40} strokeWidth={1.25} />
-              </div>
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/[0.08] bg-[#1a1a18] text-[#918d84]">{person.photo_url ? <img src={person.photo_url} alt="Directory profile" className="h-full w-full object-cover" /> : <UserCircle size={40} strokeWidth={1.25} />}</div>
 
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
