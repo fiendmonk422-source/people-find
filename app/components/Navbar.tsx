@@ -258,7 +258,7 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/auth"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#ebe8e1] px-4 py-2.5 text-sm font-semibold text-[#0c0c0b] transition hover:bg-white"
+                className="pf-button-primary"
               >
                 <LogIn size={15} />
                 Sign in
