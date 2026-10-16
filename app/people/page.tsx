@@ -84,7 +84,7 @@ export default async function PeoplePage() {
       photo_url
     `
     )
-    .order("name", { ascending: true })
+    .order("updated_at", { ascending: false })
     .limit(100);
 
   const people = (data ?? []) as Person[];
@@ -104,8 +104,7 @@ export default async function PeoplePage() {
             </h1>
 
             <p className="mt-4 text-sm leading-6 text-[#77736c] sm:text-base">
-              Explore available directory records and open a full profile
-              when you find the person you're looking for.
+              Browse recently updated student profiles, or search the full directory using a name, matric number, school or other clue.
             </p>
           </div>
 
@@ -114,7 +113,7 @@ export default async function PeoplePage() {
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#ebe8e1] px-5 py-3 text-sm font-semibold text-[#0c0c0b] transition hover:bg-white"
           >
             <Search size={16} />
-            Search directory
+            Search all people
           </Link>
         </div>
 
@@ -139,7 +138,7 @@ export default async function PeoplePage() {
             </div>
 
             <p className="text-xs text-[#625f58]">
-              Showing up to 100 records
+              Latest 100 updates
             </p>
           </div>
 
