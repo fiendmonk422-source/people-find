@@ -426,9 +426,9 @@ export default function CsvLookupImporter() {
           </div>
           {!records.length ? <div className="mt-6 rounded-xl border border-dashed border-white/[0.12] p-8 text-center"><FileSpreadsheet size={28} className="mx-auto text-[#77736c]" /><p className="mt-3 text-sm font-medium">No collection loaded yet</p><p className="mt-1 text-xs text-[#77736c]">Upload your matric-number CSV to create the queue.</p></div> : <>
             <div className="mt-5 overflow-x-auto rounded-xl border border-white/[0.08]">
-              <table className="w-full min-w-[1300px] text-left text-sm">
+              <table className="w-full min-w-[1900px] text-left text-sm">
                 <thead className="bg-[#1b1b19] text-xs uppercase tracking-wide text-[#918d84]"><tr>
-                  <th className="px-3 py-3 font-medium">Matric number</th><th className="px-3 py-3 font-medium">Full name</th><th className="px-3 py-3 font-medium">Email</th><th className="px-3 py-3 font-medium">Phone</th><th className="px-3 py-3 font-medium">Photo URL</th><th className="px-3 py-3 font-medium">Status</th><th className="px-3 py-3 font-medium">Notes / error</th>
+                  <th className="px-3 py-3 font-medium">Matric number</th><th className="px-3 py-3 font-medium">Full name</th><th className="px-3 py-3 font-medium">Email</th><th className="px-3 py-3 font-medium">Phone</th><th className="px-3 py-3 font-medium">Photo URL</th><th className="px-3 py-3 font-medium">Faculty</th><th className="px-3 py-3 font-medium">Department</th><th className="px-3 py-3 font-medium">Level</th><th className="px-3 py-3 font-medium">Hostel</th><th className="px-3 py-3 font-medium">Room</th><th className="px-3 py-3 font-medium">Status</th><th className="px-3 py-3 font-medium">Notes / error</th>
                 </tr></thead>
                 <tbody className="divide-y divide-white/[0.06]">
                   {visible.map((r) => <tr key={r.matricNumber + "-" + r.sourceRow} className="align-top">
@@ -437,8 +437,13 @@ export default function CsvLookupImporter() {
                     <td className="px-2 py-2"><Cell value={r.email} label="Email" onChange={(v) => updateRecord(r.sourceRow, "email", v)} /></td>
                     <td className="px-2 py-2"><Cell value={r.phone} label="Phone" onChange={(v) => updateRecord(r.sourceRow, "phone", v)} /></td>
                     <td className="px-2 py-2"><Cell value={r.photoUrl} label="Photo URL" onChange={(v) => updateRecord(r.sourceRow, "photoUrl", v)} /></td>
-                    <td className="px-2 py-2"><select value={r.status} onChange={(e) => setStatus(r.sourceRow, e.target.value as Status) className="w-32 rounded-lg border border-white/[0.12] bg-[#0d0d0c] px-2 py-2 text-xs"><option value="pending">Pending</option><option value="collected">Collected</option><option value="failed">Failed</option><option value="review">Needs review</option></select></td>
-                    <td className="px-2 py-2"><Cell value={r.notes} label="Notes or error" onChange={(v) => updateRecord(r.matricNumber, "notes", v)} /></td>
+                    <td className="px-2 py-2"><Cell value={r.faculty} label="Faculty" onChange={(v) => updateRecord(r.sourceRow, "faculty", v)} /></td>
+                    <td className="px-2 py-2"><Cell value={r.department} label="Department" onChange={(v) => updateRecord(r.sourceRow, "department", v)} /></td>
+                    <td className="px-2 py-2"><Cell value={r.level} label="Level" onChange={(v) => updateRecord(r.sourceRow, "level", v)} /></td>
+                    <td className="px-2 py-2"><Cell value={r.hostel} label="Hostel" onChange={(v) => updateRecord(r.sourceRow, "hostel", v)} /></td>
+                    <td className="px-2 py-2"><Cell value={r.room} label="Room" onChange={(v) => updateRecord(r.sourceRow, "room", v)} /></td>
+                    <td className="px-2 py-2"><select value={r.status} onChange={(e) => setStatus(r.sourceRow, e.target.value as Status)} className="w-32 rounded-lg border border-white/[0.12] bg-[#0d0d0c] px-2 py-2 text-xs"><option value="pending">Pending</option><option value="collected">Collected</option><option value="failed">Failed</option><option value="review">Needs review</option></select></td>
+                    <td className="px-2 py-2"><Cell value={r.notes} label="Notes or error" onChange={(v) => updateRecord(r.sourceRow, "notes", v)} /></td>
                   </tr>)}
                 </tbody>
               </table>
