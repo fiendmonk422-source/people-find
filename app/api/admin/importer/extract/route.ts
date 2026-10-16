@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractStudentBatch } from "@/lib/csv-importer/extraction/extractor";
-import { getAdminContext, adminApiError } from "@/lib/admin/server";
+import { getAdminContext, adminApiError } from "../../../../src/lib/admin/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
