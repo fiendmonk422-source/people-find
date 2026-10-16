@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Compass,
   Activity,
   BellRing,
+  Check,
+  ChevronDown,
   ShieldCheck,
   LogIn,
   LogOut,
@@ -19,6 +22,8 @@ import {
 
 import { supabase } from "../../src/lib/supabase";
 
+type Notice = { id: string; title: string; body: string; href: string | null; created_at: string; read_at: string | null };
+
 type User = {
   id: string;
   email?: string;
@@ -31,6 +36,10 @@ export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [adminUserId, setAdminUserId] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [noticeLoading, setNoticeLoading] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     async function loadUser() {
@@ -53,6 +62,46 @@ export default function Navbar() {
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!user?.id) {
+      setNotices([]);
+      return () => { active = false; };
+    }
+    setNoticeLoading(true);
+    void supabase.from("notifications")
+      .select("id,title,body,href,created_at,read_at")
+      .eq("recipient_user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(6)
+      .then(({ data, error }) => {
+        if (active) setNotices(error ? [] : (data ?? []) as Notice[]);
+      })
+      .finally(() => { if (active) setNoticeLoading(false); });
+    return () => { active = false; };
+  }, [user?.id]);
+
+  async function openNotice(item: Notice) {
+    if (!item.read_at) {
+      const now = new Date().toISOString();
+      const { error } = await supabase.from("notifications").update({ read_at: now }).eq("id", item.id);
+      if (!error) setNotices((current) => current.map((row) => row.id === item.id ? { ...row, read_at: now } : row));
+    }
+    setNoticeOpen(false);
+    setMobileOpen(false);
+    router.push(item.href || "/dashboard");
+  }
+
+  async function markNoticesRead() {
+    const ids = notices.filter((item) => !item.read_at).map((item) => item.id);
+    if (!ids.length) return;
+    const now = new Date().toISOString();
+    const { error } = await supabase.from("notifications").update({ read_at: now }).in("id", ids);
+    if (!error) setNotices((current) => current.map((row) => ({ ...row, read_at: row.read_at || now })));
+  }
+
+  const unreadNotices = notices.filter((item) => !item.read_at).length;
 
   useEffect(() => {
     let active = true;
@@ -133,7 +182,6 @@ export default function Navbar() {
           {/* DESKTOP NAV */}
           <nav className="hidden items-center gap-1 lg:flex">
             {user && <NavLink href="/dashboard" icon={<Compass size={15} />}>Home</NavLink>}
-            {user && <NavLink href="/notifications" icon={<BellRing size={15} />}>Notifications</NavLink>}
             <NavLink href="/search" icon={<Search size={15} />}>
               Search
             </NavLink>
@@ -169,6 +217,19 @@ export default function Navbar() {
 
           {/* DESKTOP ACCOUNT */}
           <div className="hidden items-center gap-2 lg:flex">
+            {user && (
+              <div className="relative">
+                <button type="button" onClick={() => setNoticeOpen((open) => !open)} aria-label={`Notifications, ${unreadNotices} unread`} aria-expanded={noticeOpen} className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.07] bg-[#141413] text-[#cdbd96] transition hover:border-white/[0.12] hover:bg-[#191918]">
+                  <BellRing size={17} />
+                  {unreadNotices > 0 && <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-[#0c0c0b] bg-[#cdbd96] px-1 text-[10px] font-bold text-[#0c0c0b]">{unreadNotices > 9 ? "9+" : unreadNotices}</span>}
+                </button>
+                {noticeOpen && <div className="absolute right-0 top-12 z-[70] w-[min(90vw,360px)] overflow-hidden rounded-2xl border border-white/10 bg-[#141413] shadow-2xl shadow-black/40">
+                  <div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-3"><div><p className="text-sm font-semibold text-[#ebe8e1]">Notifications</p><p className="mt-0.5 text-xs text-[#77736c]">{unreadNotices} unread</p></div><button type="button" onClick={() => void markNoticesRead()} disabled={!unreadNotices} className="text-xs text-[#cdbd96] hover:text-[#ebe8e1] disabled:opacity-40">Mark all read</button></div>
+                  {noticeLoading ? <p className="px-4 py-7 text-center text-sm text-[#918d84]">Loading updates…</p> : notices.length ? <div className="max-h-[360px] overflow-y-auto">{notices.map((item) => <button type="button" key={item.id} onClick={() => void openNotice(item)} className={"block w-full border-b border-white/[0.05] px-4 py-3 text-left transition hover:bg-white/[0.03] " + (!item.read_at ? "bg-[#cdbd96]/[0.035]" : "")}><span className="flex items-start gap-2"><span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full " + (!item.read_at ? "bg-[#cdbd96]" : "bg-transparent")}></span><span className="min-w-0 flex-1"><span className="block text-sm font-medium text-[#ebe8e1]">{item.title}</span><span className="mt-1 block line-clamp-2 text-xs leading-5 text-[#918d84]">{item.body}</span><span className="mt-1.5 block text-[10px] text-[#77736c]">{new Date(item.created_at).toLocaleString()}</span></span>{item.read_at && <Check size={13} className="mt-1 text-[#77736c]"/>}</span></button>)}</div> : <p className="px-4 py-7 text-center text-sm text-[#918d84]">You're all caught up. Important replies and updates will appear here.</p>}
+                  <Link href="/dashboard#notifications" onClick={() => setNoticeOpen(false)} className="block border-t border-white/[0.07] px-4 py-3 text-center text-xs font-medium text-[#cdbd96] hover:bg-white/[0.03]">View on student home</Link>
+                </div>}
+              </div>
+            )}
             {user ? (
               <>
                 <Link
@@ -203,9 +264,10 @@ export default function Navbar() {
           </div>
 
           {/* MOBILE MENU BUTTON */}
+          {user && <button type="button" onClick={() => setNoticeOpen((open) => !open)} aria-label={`Notifications, ${unreadNotices} unread`} className="relative mr-2 flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.07] bg-[#141413] text-[#cdbd96] transition hover:bg-[#191918] lg:hidden"><BellRing size={17}/>{unreadNotices > 0 && <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-[#0c0c0b] bg-[#cdbd96] px-1 text-[10px] font-bold text-[#0c0c0b]">{unreadNotices > 9 ? "9+" : unreadNotices}</span>}</button>}
           <button
             type="button"
-            onClick={() => setMobileOpen((value) => !value)}
+            onClick={() => setMobileOpen((value) => !value)
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.07] bg-[#141413] text-[#a7a39b] transition hover:bg-[#191918] hover:text-[#ebe8e1] lg:hidden"
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileOpen}
@@ -214,13 +276,17 @@ export default function Navbar() {
           </button>
         </div>
 
+        {user && noticeOpen && <div className="absolute right-4 top-[64px] z-[70] w-[min(92vw,360px)] overflow-hidden rounded-2xl border border-white/10 bg-[#141413] shadow-2xl shadow-black/40 lg:hidden">
+          <div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-3"><div><p className="text-sm font-semibold text-[#ebe8e1]">Notifications</p><p className="mt-0.5 text-xs text-[#77736c]">{unreadNotices} unread</p></div><button type="button" onClick={() => void markNoticesRead()} disabled={!unreadNotices} className="text-xs text-[#cdbd96] disabled:opacity-40">Mark all read</button></div>
+          {noticeLoading ? <p className="px-4 py-7 text-center text-sm text-[#918d84]">Loading updates…</p> : notices.length ? <div className="max-h-[55vh] overflow-y-auto">{notices.map((item) => <button type="button" key={item.id} onClick={() => void openNotice(item)} className={"block w-full border-b border-white/[0.05] px-4 py-3 text-left hover:bg-white/[0.03] " + (!item.read_at ? "bg-[#cdbd96]/[0.035]" : "")}><span className="flex items-start gap-2"><span className={"mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full " + (!item.read_at ? "bg-[#cdbd96]" : "bg-transparent")}></span><span className="min-w-0 flex-1"><span className="block text-sm font-medium text-[#ebe8e1]">{item.title}</span><span className="mt-1 block line-clamp-2 text-xs leading-5 text-[#918d84]">{item.body}</span><span className="mt-1.5 block text-[10px] text-[#77736c]">{new Date(item.created_at).toLocaleString()}</span></span></span></button>)}</div> : <p className="px-4 py-7 text-center text-sm text-[#918d84]">You're all caught up. Important replies and updates will appear here.</p>}
+          <Link href="/dashboard#notifications" onClick={() => setNoticeOpen(false)} className="block border-t border-white/[0.07] px-4 py-3 text-center text-xs font-medium text-[#cdbd96]">View on student home</Link>
+        </div>}
         {/* MOBILE NAV */}
         {mobileOpen && (
           <div className="border-t border-white/[0.06] bg-[#0f0f0e] lg:hidden">
             <nav className="mx-auto max-w-7xl px-5 py-4 sm:px-6">
               <div className="grid gap-1">
                 {user && <MobileNavLink href="/dashboard" icon={<Compass size={17} />} onClick={closeMobile}>Student home</MobileNavLink>}
-                {user && <MobileNavLink href="/notifications" icon={<BellRing size={17} />} onClick={closeMobile}>Notifications</MobileNavLink>}
                 <MobileNavLink
                   href="/search"
                   icon={<Search size={17} />}
