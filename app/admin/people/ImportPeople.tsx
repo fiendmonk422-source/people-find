@@ -151,9 +151,9 @@ export default function ImportPeople({ onImported }: { onImported?: () => void }
         totals.rejected += batchResult.rejected || 0;
         totals.submitted += batchResult.submitted || batch.length;
         setProcessedRows(Math.min(offset + batch.length, rows.length));
-        setResult({ ...totals });
       }
 
+      setResult({ ...totals });
       onImported?.();
       setRows([]);
       setHeaders([]);
