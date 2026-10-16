@@ -1,11 +1,10 @@
 /**
- * Configure only an official API endpoint or an authorized institutional export service.
- * Keep the URL blank until that endpoint is approved and ready.
- *
- * Set PEOPLEFIND_LOOKUP_API_TOKEN in the server environment if the approved endpoint
- * requires a bearer token. Never put passwords, tokens, or cookies in client code/CSV.
+ * Public reference portal and approved data endpoint are separate settings.
+ * The CGS login page is not itself a bulk data API.
+ * Keep endpointUrl blank until an institution-approved export/API endpoint is available.
  */
 export const extractionConfig = {
+  sourcePortalUrl: "https://cgs.ui.edu.ng/portal/",
   endpointUrl: "",
   maxBatchSize: 50,
   requestTimeoutMs: 20000,
