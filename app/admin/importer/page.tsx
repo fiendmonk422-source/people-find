@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAdminContext } from "../../../src/lib/admin/server";
 import AdminSetupNotice from "../AdminSetupNotice";
 import CsvLookupImporter from "./CsvLookupImporter";
+import AuthorizedExtractionPanel from "./AuthorizedExtractionPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -11,5 +12,10 @@ export default async function CsvLookupImporterPage() {
   if (access.roleError) return <AdminSetupNotice />;
   if (!access.isAdmin) redirect("/");
 
-  return <CsvLookupImporter />;
+  return (
+    <>
+      <CsvLookupImporter />
+      <AuthorizedExtractionPanel />
+    </>
+  );
 }
