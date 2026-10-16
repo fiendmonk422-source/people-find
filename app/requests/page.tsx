@@ -302,7 +302,7 @@ export default function RequestsPage() {
     setError("");
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setError("Please sign in first."); return; }
-    const { error: updateError } = await supabase.from("requests").update({ status }).eq("id", requestId).eq("user_id", user.id);
+    const { error: updateError } = await supabase.rpc("update_own_request_status", { p_request_id: requestId, p_status: status });
     if (updateError) setError(updateError.message || "Could not update request status.");
     else await loadRequests();
   }
