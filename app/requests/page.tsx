@@ -11,7 +11,6 @@ import {
   Users,
   X,
 } from "lucide-react";
-import Navbar from "../components/Navbar";
 import { supabase } from "../../src/lib/supabase";
 
 type RequestItem = {
@@ -342,7 +341,6 @@ export default function RequestsPage() {
 
   return (
     <main className="min-h-screen bg-[#0c0c0b] text-[#ebe8e1]">
-      <Navbar />
 
       <section className="mx-auto max-w-5xl px-5 py-10 sm:px-6 lg:py-14">
         <header className="flex flex-col gap-6 border-b border-white/[0.07] pb-8 sm:flex-row sm:items-end sm:justify-between">
