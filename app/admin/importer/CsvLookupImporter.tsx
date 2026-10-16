@@ -4,7 +4,7 @@ import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, CheckCircle2, CircleAlert, Download, FileSpreadsheet,
-  Save, Search, UploadCloud, RotateCcw, Database, Pause, Play, RefreshCw,
+  Save, Search, UploadCloud, RotateCcw, Database, RefreshCw,
 } from "lucide-react";
 
 type Status = "pending" | "collected" | "failed" | "review";
@@ -17,6 +17,17 @@ type RecordRow = {
   email: string;
   phone: string;
   photoUrl: string;
+  faculty: string;
+  department: string;
+  level: string;
+  admissionYear: string;
+  hostel: string;
+  room: string;
+  gender: string;
+  dateOfBirth: string;
+  address: string;
+  state: string;
+  country: string;
   source: string;
   notes: string;
   updatedAt: string;
@@ -26,7 +37,7 @@ type ParseResult = { rows: RecordRow[]; errors: string[]; hasHeader: boolean };
 const STORAGE_KEY = "peoplefind-csv-collection-checkpoint-v1";
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_ROWS = 10000;
-const HEADERS: Record<string, keyof Pick<RecordRow, "matricNumber" | "fullName" | "email" | "phone" | "photoUrl" | "source" | "notes" | "status">> = {
+const HEADERS: Record<string, keyof Pick<RecordRow, "matricNumber" | "fullName" | "email" | "phone" | "photoUrl" | "faculty" | "department" | "level" | "admissionYear" | "hostel" | "room" | "gender" | "dateOfBirth" | "address" | "state" | "country" | "source" | "notes" | "status">> = {
   matric_number: "matricNumber", "matric number": "matricNumber", matricno: "matricNumber",
   "matric no": "matricNumber", matriculation_number: "matricNumber",
   "matriculation number": "matricNumber", matric: "matricNumber",
@@ -36,6 +47,11 @@ const HEADERS: Record<string, keyof Pick<RecordRow, "matricNumber" | "fullName" 
   email: "email", email_address: "email", "email address": "email",
   phone: "phone", phone_number: "phone", "phone number": "phone", mobile: "phone",
   photo_url: "photoUrl", "photo url": "photoUrl", image_url: "photoUrl",
+  faculty: "faculty", faculty_name: "faculty", department: "department", department_name: "department",
+  level: "level", study_level: "level", admission_year: "admissionYear", "admission year": "admissionYear",
+  hostel: "hostel", hall: "hostel", residence: "hostel", room: "room", room_number: "room",
+  gender: "gender", dob: "dateOfBirth", date_of_birth: "dateOfBirth", "date of birth": "dateOfBirth",
+  address: "address", state: "state", state_of_origin: "state", country: "country",
   source: "source", data_source: "source", notes: "notes", error: "notes",
   lookup_status: "status", status: "status", collection_status: "status",
 };
@@ -80,8 +96,9 @@ function parseCsv(text: string): string[][] {
 function blankRecord(matricNumber: string, sourceRow: number, duplicate = false): RecordRow {
   return {
     matricNumber, sourceRow, duplicate, status: duplicate ? "review" : "pending",
-    fullName: "", email: "", phone: "", photoUrl: "", source: "", notes: "",
-    updatedAt: "",
+    fullName: "", email: "", phone: "", photoUrl: "", faculty: "", department: "", level: "",
+    admissionYear: "", hostel: "", room: "", gender: "", dateOfBirth: "", address: "", state: "", country: "",
+    source: "", notes: "", updatedAt: "",
   };
 }
 
@@ -157,8 +174,8 @@ function downloadCsv(filename: string, rows: string[][]) {
 
 function exportRecords(filename: string, records: RecordRow[]) {
   downloadCsv(filename, [
-    ["matric_number", "full_name", "email", "phone", "photo_url", "collection_status", "source", "notes", "source_csv_row", "updated_at"],
-    ...records.map((r) => [r.matricNumber, r.fullName, r.email, r.phone, r.photoUrl, r.status, r.source, r.notes, String(r.sourceRow), r.updatedAt]),
+    ["matric_number", "full_name", "email", "phone", "photo_url", "faculty", "department", "level", "admission_year", "hostel", "room", "gender", "date_of_birth", "address", "state", "country", "collection_status", "source", "notes", "source_csv_row", "updated_at"],
+    ...records.map((r) => [r.matricNumber, r.fullName, r.email, r.phone, r.photoUrl, r.faculty, r.department, r.level, r.admissionYear, r.hostel, r.room, r.gender, r.dateOfBirth, r.address, r.state, r.country, r.status, r.source, r.notes, String(r.sourceRow), r.updatedAt]),
   ]);
 }
 
@@ -173,8 +190,7 @@ export default function CsvLookupImporter() {
   const [errors, setErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [paused, setPaused] = useState(true);
-  const [batchSize, setBatchSize] = useState(10);
+   const [batchSize, setBatchSize] = useState(10);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAll, setShowAll] = useState(false);
@@ -237,8 +253,7 @@ export default function CsvLookupImporter() {
         if (!parsed.rows.length) { setErrors(parsed.errors.length ? parsed.errors : ["No matric numbers were found."]); return; }
         setRecords(parsed.rows);
         setFileName(file.name);
-        setPaused(true);
-        setNotice(`Loaded ${parsed.rows.length.toLocaleString()} records. Review the queue, then start collection when ready.`);
+         setNotice(`Loaded ${parsed.rows.length.toLocaleString()} records. Review the queue, then start collection when ready.`);
         setErrors(parsed.errors);
       } else {
         const imported = parseResultCsv(text);
@@ -247,13 +262,24 @@ export default function CsvLookupImporter() {
         setRecords((current) => current.map((record) => {
           const incoming = lookup.get(record.matricNumber.toLowerCase());
           if (!incoming) return record;
-          const hasDetails = Boolean(incoming.fullName || incoming.email || incoming.phone || incoming.photoUrl);
+          const hasDetails = Boolean(incoming.fullName || incoming.email || incoming.phone || incoming.photoUrl || incoming.faculty || incoming.department || incoming.level || incoming.hostel || incoming.room);
           return {
             ...record,
             fullName: incoming.fullName || record.fullName,
             email: incoming.email || record.email,
             phone: incoming.phone || record.phone,
             photoUrl: incoming.photoUrl || record.photoUrl,
+            faculty: incoming.faculty || record.faculty,
+            department: incoming.department || record.department,
+            level: incoming.level || record.level,
+            admissionYear: incoming.admissionYear || record.admissionYear,
+            hostel: incoming.hostel || record.hostel,
+            room: incoming.room || record.room,
+            gender: incoming.gender || record.gender,
+            dateOfBirth: incoming.dateOfBirth || record.dateOfBirth,
+            address: incoming.address || record.address,
+            state: incoming.state || record.state,
+            country: incoming.country || record.country,
             source: incoming.source || record.source,
             notes: incoming.notes || record.notes,
             status: incoming.status || (hasDetails ? "collected" : record.status),
@@ -274,24 +300,23 @@ export default function CsvLookupImporter() {
     await readFile(event.target.files?.[0], "results"); event.target.value = "";
   }
 
-  function updateRecord(matricNumber: string, field: keyof RecordRow, value: string) {
-    setRecords((current) => current.map((r) => r.matricNumber === matricNumber
+  function updateRecord(sourceRow: number, field: keyof RecordRow, value: string) {
+    setRecords((current) => current.map((r) => r.sourceRow === sourceRow
       ? { ...r, [field]: value, updatedAt: new Date().toISOString() }
       : r));
   }
 
-  function setStatus(matricNumber: string, status: Status) {
-    updateRecord(matricNumber, "status", status);
+  function setStatus(sourceRow: number, status: Status) {
+    updateRecord(sourceRow, "status", status);
   }
 
   function updateNextBatch(status: Status) {
-    const keys = new Set(nextBatch.map((r) => r.matricNumber.toLowerCase()));
+    const keys = new Set(nextBatch.map((r) => r.sourceRow));
     if (!keys.size) { setNotice("There are no pending records in the next batch."); return; }
-    setRecords((current) => current.map((r) => keys.has(r.matricNumber.toLowerCase())
+    setRecords((current) => current.map((r) => keys.has(r.sourceRow)
       ? { ...r, status, updatedAt: new Date().toISOString() }
       : r));
     setNotice(`Updated ${keys.size} record(s) in the next batch to “${statusLabel(status)}”.`);
-    if (status === "collected") setPaused(true);
   }
 
   function retryFailed() {
@@ -301,7 +326,7 @@ export default function CsvLookupImporter() {
 
   function clearWorkspace() {
     if (!window.confirm("Clear this collection workspace and its browser checkpoint? Export a backup first if you need these records.")) return;
-    setRecords([]); setFileName(""); setErrors([]); setNotice(""); setPaused(true);
+    setRecords([]); setFileName(""); setErrors([]); setNotice("");
     window.localStorage.removeItem(STORAGE_KEY);
   }
 
@@ -358,6 +383,7 @@ export default function CsvLookupImporter() {
               <span className="mt-1 text-xs text-[#77736c]">Match by matric number; unmatched rows are skipped.</span>
               <input id="results-file" type="file" accept=".csv,text/csv" onChange={onResultsFile} className="sr-only" />
             </label>
+            <button type="button" onClick={() => downloadCsv("peoplefind-collection-results-template.csv", [["matric_number", "full_name", "email", "phone", "photo_url", "faculty", "department", "level", "admission_year", "hostel", "room", "gender", "date_of_birth", "address", "state", "country", "collection_status", "source", "notes"], ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "collected", "", ""]])} className="mt-3 inline-flex items-center gap-2 rounded-xl border border-white/[0.12] px-3 py-2 text-xs text-[#d6d1c7] hover:bg-white/[0.04]"><Download size={14} />Download results CSV template</button>
           </div>
         </section>
 
@@ -375,11 +401,11 @@ export default function CsvLookupImporter() {
               {[5, 10, 20, 25, 50].map((n) => <option key={n} value={n}>{n} records</option>)}
             </select>
             <span className="text-sm text-[#77736c]">Next batch: {nextBatch.length} pending record(s)</span>
-            <button type="button" onClick={() => setPaused((v) => !v)} className="inline-flex items-center gap-2 rounded-xl border border-white/[0.12] px-3 py-2 text-sm hover:bg-white/[0.04]">{paused ? <Play size={15} /> : <Pause size={15} />}{paused ? "Resume workflow" : "Pause workflow"}</button>
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#d98282]/20 bg-[#d98282]/[0.05] px-3 py-2 text-xs text-[#e0a29a]">Website runner: not configured</span>
             <button type="button" onClick={() => updateNextBatch("review")} disabled={!nextBatch.length} className="rounded-xl border border-white/[0.12] px-3 py-2 text-sm disabled:opacity-40">Send next batch to review</button>
             <button type="button" onClick={retryFailed} disabled={!counts.failed} className="inline-flex items-center gap-2 rounded-xl border border-white/[0.12] px-3 py-2 text-sm disabled:opacity-40"><RefreshCw size={15} />Retry failed</button>
           </div>
-          {!paused && <p className="mt-3 text-xs text-[#cdbd96]">Workflow resumed. The workspace is ready for result imports and status updates; no background website lookups run until a data source is configured.</p>}
+          <p className="mt-3 text-xs text-[#a29d92]">The lookup URL is intentionally blank. The queue, result reconciliation, checkpointing, retries and exports are prepared here; website form submission and extraction will be connected after you provide the URL and form details.</p>
           <div className="mt-5 flex flex-wrap gap-2 border-t border-white/[0.08] pt-5">
             <button type="button" onClick={() => exportRecords("peoplefind-collection-backup.csv", records)} disabled={!records.length} className="inline-flex items-center gap-2 rounded-xl bg-[#cdbd96] px-3 py-2 text-sm font-medium text-[#181713] disabled:opacity-40"><Download size={15} />Export full backup</button>
             <button type="button" onClick={() => exportRecords("peoplefind-collected.csv", records.filter((r) => r.status === "collected"))} disabled={!counts.collected} className="inline-flex items-center gap-2 rounded-xl border border-white/[0.12] px-3 py-2 text-sm disabled:opacity-40"><Download size={15} />Export collected</button>
@@ -407,11 +433,11 @@ export default function CsvLookupImporter() {
                 <tbody className="divide-y divide-white/[0.06]">
                   {visible.map((r) => <tr key={r.matricNumber + "-" + r.sourceRow} className="align-top">
                     <td className="px-3 py-3 font-mono text-xs">{r.matricNumber}{r.duplicate && <span className="mt-1 block text-[10px] text-[#e0b27f]">Duplicate</span>}</td>
-                    <td className="px-2 py-2"><Cell value={r.fullName} label="Full name" onChange={(v) => updateRecord(r.matricNumber, "fullName", v)} /></td>
-                    <td className="px-2 py-2"><Cell value={r.email} label="Email" onChange={(v) => updateRecord(r.matricNumber, "email", v)} /></td>
-                    <td className="px-2 py-2"><Cell value={r.phone} label="Phone" onChange={(v) => updateRecord(r.matricNumber, "phone", v)} /></td>
-                    <td className="px-2 py-2"><Cell value={r.photoUrl} label="Photo URL" onChange={(v) => updateRecord(r.matricNumber, "photoUrl", v)} /></td>
-                    <td className="px-2 py-2"><select value={r.status} onChange={(e) => setStatus(r.matricNumber, e.target.value as Status)} className="w-32 rounded-lg border border-white/[0.12] bg-[#0d0d0c] px-2 py-2 text-xs"><option value="pending">Pending</option><option value="collected">Collected</option><option value="failed">Failed</option><option value="review">Needs review</option></select></td>
+                    <td className="px-2 py-2"><Cell value={r.fullName} label="Full name" onChange={(v) => updateRecord(r.sourceRow, "fullName", v)} /></td>
+                    <td className="px-2 py-2"><Cell value={r.email} label="Email" onChange={(v) => updateRecord(r.sourceRow, "email", v)} /></td>
+                    <td className="px-2 py-2"><Cell value={r.phone} label="Phone" onChange={(v) => updateRecord(r.sourceRow, "phone", v)} /></td>
+                    <td className="px-2 py-2"><Cell value={r.photoUrl} label="Photo URL" onChange={(v) => updateRecord(r.sourceRow, "photoUrl", v)} /></td>
+                    <td className="px-2 py-2"><select value={r.status} onChange={(e) => setStatus(r.sourceRow, e.target.value as Status) className="w-32 rounded-lg border border-white/[0.12] bg-[#0d0d0c] px-2 py-2 text-xs"><option value="pending">Pending</option><option value="collected">Collected</option><option value="failed">Failed</option><option value="review">Needs review</option></select></td>
                     <td className="px-2 py-2"><Cell value={r.notes} label="Notes or error" onChange={(v) => updateRecord(r.matricNumber, "notes", v)} /></td>
                   </tr>)}
                 </tbody>
