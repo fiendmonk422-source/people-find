@@ -53,7 +53,7 @@ export default async function PeoplePage() {
 
           <Link
             href="/auth"
-            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-[#ebe8e1] px-5 py-3 text-sm font-semibold text-[#0c0c0b] transition hover:bg-white"
+            className="pf-button-primary mt-7"
           >
             Sign in
             <ArrowRight size={15} />
@@ -110,7 +110,7 @@ export default async function PeoplePage() {
 
           <Link
             href="/search"
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#ebe8e1] px-5 py-3 text-sm font-semibold text-[#0c0c0b] transition hover:bg-white"
+            className="pf-button-primary shrink-0"
           >
             <Search size={16} />
             Search all people
