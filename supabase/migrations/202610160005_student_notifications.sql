@@ -78,7 +78,7 @@ for each row execute function public.notify_response_reaction();
 
 
 create or replace function public.notify_published_announcement()
-returns trigger language plpgsql security definer set search_path = '' as $
+returns trigger language plpgsql security definer set search_path = '' as $$
 begin
   if new.status = 'published' and (
     tg_op = 'INSERT'
