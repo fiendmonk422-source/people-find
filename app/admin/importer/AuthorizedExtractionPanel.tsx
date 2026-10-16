@@ -72,7 +72,7 @@ export default function AuthorizedExtractionPanel() {
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Bulk record collection</h2>
-          <p className="mt-1 max-w-2xl text-sm text-zinc-400">Paste matric numbers or a CSV column. Source portal: https://cgs.ui.edu.ng/portal/. This is a student login page, not a bulk API; collection stays disabled until an authorized institution export/API endpoint is configured.</p>
+          <p className="mt-1 max-w-2xl text-sm text-zinc-400">Paste matric numbers or a CSV column. Source portal: https://cgs.ui.edu.ng/portal/. The portal reference is configured, but this sign-in page is not a bulk API. Actual extraction needs an institution-approved export/API endpoint; this panel will not log into individual student accounts.</p>
         </div>
         <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-zinc-300">Admin only · No password storage</span>
       </div>
