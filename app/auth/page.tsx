@@ -14,6 +14,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nickname, setNickname] = useState("");
+  const [school, setSchool] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -54,7 +55,7 @@ export default function AuthPage() {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { data: { nickname: nickname.trim() }, emailRedirectTo: window.location.origin + "/auth/callback" },
+          options: { data: { nickname: nickname.trim(), school: school.trim() }, emailRedirectTo: window.location.origin + "/auth/callback" },
         });
 
         if (error) {
