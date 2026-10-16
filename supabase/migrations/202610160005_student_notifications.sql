@@ -93,7 +93,7 @@ begin
     where u.id is distinct from new.created_by;
   end if;
   return new;
-end; $;
+end; $$;
 
 drop trigger if exists published_announcement_notification on public.site_announcements;
 create trigger published_announcement_notification
