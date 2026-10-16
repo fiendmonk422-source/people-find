@@ -376,7 +376,7 @@ export default function Navbar() {
                 <Link
                   href="/auth"
                   onClick={closeMobile}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-[#ebe8e1] px-4 py-3 text-sm font-semibold text-[#0c0c0b] transition hover:bg-white"
+                  className="pf-button-primary w-full"
                 >
                   <LogIn size={16} />
                   Sign in
