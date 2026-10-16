@@ -4,13 +4,24 @@ import { createSupabaseServerClient } from "../../../src/lib/supabase-server";
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
+  const providerError = url.searchParams.get("error");
   const requestedNext = url.searchParams.get("next") || "/";
-  const next = requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/";
+  const next =
+    requestedNext.startsWith("/") && !requestedNext.startsWith("//")
+      ? requestedNext
+      : "/";
+
+  if (providerError) {
+    return NextResponse.redirect(new URL("/auth?error=oauth", url.origin));
+  }
 
   if (code) {
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(new URL(next, url.origin));
+
+    if (!error) {
+      return NextResponse.redirect(new URL(next, url.origin));
+    }
   }
 
   return NextResponse.redirect(new URL("/auth?error=confirmation", url.origin));
