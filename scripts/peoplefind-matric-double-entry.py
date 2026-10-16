@@ -142,7 +142,6 @@ def main() -> int:
     write_checkpoint(output_path, records)
 
     print("\nA visible browser will open. If the site requires sign-in, sign in manually.")
-    print("The runner will not start submitting until you confirm the page is ready.")
     print(f"Progress is saved after every attempt to: {output_path}")
     print("Default selectors:")
     print(f"  First input:  {args.first_selector}")
@@ -150,7 +149,6 @@ def main() -> int:
     print(f"  Submit:       {args.submit_selector}")
     if args.result_selector:
         print(f"  Result ready: {args.result_selector}")
-    input("Press Enter when the lookup form is ready in the browser... ")
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=False)
