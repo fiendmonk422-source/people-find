@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -64,7 +64,8 @@ export default function Navbar() {
 
   useEffect(() => {
     let active = true;
-    if (!user?.id) {
+    const userId = user?.id;
+    if (!userId) {
       setNotices([]);
       return () => { active = false; };
     }
@@ -72,7 +73,7 @@ export default function Navbar() {
     async function loadNotices() {
       const { data, error } = await supabase.from("notifications")
         .select("id,title,body,href,created_at,read_at")
-        .eq("recipient_user_id", user.id)
+        .eq("recipient_user_id", userId)
         .order("created_at", { ascending: false })
         .limit(6);
       if (active) {
@@ -227,7 +228,7 @@ export default function Navbar() {
                 </button>
                 {noticeOpen && <div className="absolute right-0 top-12 z-[70] w-[min(90vw,360px)] overflow-hidden rounded-2xl border border-white/10 bg-[#141413] shadow-2xl shadow-black/40">
                   <div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-3"><div><p className="text-sm font-semibold text-[#ebe8e1]">Notifications</p><p className="mt-0.5 text-xs text-[#77736c]">{unreadNotices} unread</p></div><button type="button" onClick={() => void markNoticesRead()} disabled={!unreadNotices} className="text-xs text-[#cdbd96] hover:text-[#ebe8e1] disabled:opacity-40">Mark all read</button></div>
-                  {noticeLoading ? <p className="px-4 py-7 text-center text-sm text-[#918d84]">Loading updates…</p> : notices.length ? <div className="max-h-[360px] overflow-y-auto">{notices.map((item) => <button type="button" key={item.id} onClick={() => void openNotice(item)} className={"block w-full border-b border-white/[0.05] px-4 py-3 text-left transition hover:bg-white/[0.03] " + (!item.read_at ? "bg-[#cdbd96]/[0.035]" : "")}><span className="flex items-start gap-2"><span className={"mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full " + (!item.read_at ? "bg-[#cdbd96]" : "bg-transparent")}}></span><span className="min-w-0 flex-1"><span className="block text-sm font-medium text-[#ebe8e1]">{item.title}</span><span className="mt-1 block line-clamp-2 text-xs leading-5 text-[#918d84]">{item.body}</span><span className="mt-1.5 block text-[10px] text-[#77736c]">{new Date(item.created_at).toLocaleString()}</span></span>{item.read_at && <Check size={13} className="mt-1 text-[#77736c]"/>}</span></button>)}</div> : <p className="px-4 py-7 text-center text-sm text-[#918d84]">You're all caught up. Important replies and updates will appear here.</p>}
+                  {noticeLoading ? <p className="px-4 py-7 text-center text-sm text-[#918d84]">Loading updatesâ€¦</p> : notices.length ? <div className="max-h-[360px] overflow-y-auto">{notices.map((item) => <button type="button" key={item.id} onClick={() => void openNotice(item)} className={"block w-full border-b border-white/[0.05] px-4 py-3 text-left transition hover:bg-white/[0.03] " + (!item.read_at ? "bg-[#cdbd96]/[0.035]" : "")}><span className="flex items-start gap-2"><span className={"mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full " + (!item.read_at ? "bg-[#cdbd96]" : "bg-transparent")}></span><span className="min-w-0 flex-1"><span className="block text-sm font-medium text-[#ebe8e1]">{item.title}</span><span className="mt-1 block line-clamp-2 text-xs leading-5 text-[#918d84]">{item.body}</span><span className="mt-1.5 block text-[10px] text-[#77736c]">{new Date(item.created_at).toLocaleString()}</span></span>{item.read_at && <Check size={13} className="mt-1 text-[#77736c]"/>}</span></button>)}</div> : <p className="px-4 py-7 text-center text-sm text-[#918d84]">You're all caught up. Important replies and updates will appear here.</p>}
                   <Link href="/dashboard#notifications" onClick={() => setNoticeOpen(false)} className="block border-t border-white/[0.07] px-4 py-3 text-center text-xs font-medium text-[#cdbd96] hover:bg-white/[0.03]">View on student home</Link>
                 </div>}
               </div>
@@ -269,7 +270,7 @@ export default function Navbar() {
           {user && <button type="button" onClick={() => setNoticeOpen((open) => !open)} aria-label={`Notifications, ${unreadNotices} unread`} className="relative mr-2 flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.07] bg-[#141413] text-[#cdbd96] transition hover:bg-[#191918] lg:hidden"><BellRing size={17}/>{unreadNotices > 0 && <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-[#0c0c0b] bg-[#cdbd96] px-1 text-[10px] font-bold text-[#0c0c0b]">{unreadNotices > 9 ? "9+" : unreadNotices}</span>}</button>}
           <button
             type="button"
-            onClick={() => setMobileOpen((value) => !value)
+            onClick={() => setMobileOpen((value) => !value)}
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.07] bg-[#141413] text-[#a7a39b] transition hover:bg-[#191918] hover:text-[#ebe8e1] lg:hidden"
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileOpen}
@@ -280,7 +281,7 @@ export default function Navbar() {
 
         {user && noticeOpen && <div className="absolute right-4 top-[64px] z-[70] w-[min(92vw,360px)] overflow-hidden rounded-2xl border border-white/10 bg-[#141413] shadow-2xl shadow-black/40 lg:hidden">
           <div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-3"><div><p className="text-sm font-semibold text-[#ebe8e1]">Notifications</p><p className="mt-0.5 text-xs text-[#77736c]">{unreadNotices} unread</p></div><button type="button" onClick={() => void markNoticesRead()} disabled={!unreadNotices} className="text-xs text-[#cdbd96] disabled:opacity-40">Mark all read</button></div>
-          {noticeLoading ? <p className="px-4 py-7 text-center text-sm text-[#918d84]">Loading updates…</p> : notices.length ? <div className="max-h-[55vh] overflow-y-auto">{notices.map((item) => <button type="button" key={item.id} onClick={() => void openNotice(item)} className={"block w-full border-b border-white/[0.05] px-4 py-3 text-left hover:bg-white/[0.03] " + (!item.read_at ? "bg-[#cdbd96]/[0.035]" : "")}><span className="flex items-start gap-2"><span className={"mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full " + (!item.read_at ? "bg-[#cdbd96]" : "bg-transparent")}></span><span className="min-w-0 flex-1"><span className="block text-sm font-medium text-[#ebe8e1]">{item.title}</span><span className="mt-1 block line-clamp-2 text-xs leading-5 text-[#918d84]">{item.body}</span><span className="mt-1.5 block text-[10px] text-[#77736c]">{new Date(item.created_at).toLocaleString()}</span></span></span></button>)}</div> : <p className="px-4 py-7 text-center text-sm text-[#918d84]">You're all caught up. Important replies and updates will appear here.</p>}
+          {noticeLoading ? <p className="px-4 py-7 text-center text-sm text-[#918d84]">Loading updatesâ€¦</p> : notices.length ? <div className="max-h-[55vh] overflow-y-auto">{notices.map((item) => <button type="button" key={item.id} onClick={() => void openNotice(item)} className={"block w-full border-b border-white/[0.05] px-4 py-3 text-left hover:bg-white/[0.03] " + (!item.read_at ? "bg-[#cdbd96]/[0.035]" : "")}><span className="flex items-start gap-2"><span className={"mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full " + (!item.read_at ? "bg-[#cdbd96]" : "bg-transparent")}></span><span className="min-w-0 flex-1"><span className="block text-sm font-medium text-[#ebe8e1]">{item.title}</span><span className="mt-1 block line-clamp-2 text-xs leading-5 text-[#918d84]">{item.body}</span><span className="mt-1.5 block text-[10px] text-[#77736c]">{new Date(item.created_at).toLocaleString()}</span></span></span></button>)}</div> : <p className="px-4 py-7 text-center text-sm text-[#918d84]">You're all caught up. Important replies and updates will appear here.</p>}
           <Link href="/dashboard#notifications" onClick={() => setNoticeOpen(false)} className="block border-t border-white/[0.07] px-4 py-3 text-center text-xs font-medium text-[#cdbd96]">View on student home</Link>
         </div>}
         {/* MOBILE NAV */}
